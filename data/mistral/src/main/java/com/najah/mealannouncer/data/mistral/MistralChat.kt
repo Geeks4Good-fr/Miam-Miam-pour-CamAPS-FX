@@ -44,7 +44,7 @@ internal const val AI_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 /** En-têtes d'identification demandés par OpenRouter (classement des applis, aucune donnée). */
 internal val OPENROUTER_APP_HEADERS = mapOf(
-    "HTTP-Referer" to "https://github.com/Najah69/Miam-Miam-pour-CamAPS-FX",
+    "HTTP-Referer" to "https://github.com/Geeks4Good-fr/Miam-Miam-pour-CamAPS-FX",
     "X-Title" to "Miam-Miam pour CamAPS FX",
 )
 
