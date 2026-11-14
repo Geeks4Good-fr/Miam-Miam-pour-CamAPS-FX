@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Le seul dossier que l'appareil photo peut écrire : le cache de l'application, sous-dossier
+    « plate ». Une photo d'assiette n'est donc jamais enregistrée dans la galerie de
+    l'utilisateur, et disparaît dès qu'elle a été lue.
+-->
+<paths>
+    <cache-path name="assiette" path="plate/" />
+</paths>

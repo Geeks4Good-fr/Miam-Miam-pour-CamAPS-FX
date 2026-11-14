@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuration du service d'accessibilité.
+    Il se limite aux changements de fenêtre et de contenu : de quoi lire l'écran de Glooko
+    quand l'automatisation le demande, sans surveillance permanente.
+    flagReportViewIds : sans lui, Android ne transmet pas les identifiants (btnAdd, editCarbs,
+    btnSave…) et le Carnet, qui les cherche, ne trouve rien (cause des échecs des 26 et 27/10).
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagIncludeNotImportantViews|flagRetrieveInteractiveWindows|flagReportViewIds"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/glooko_accessibility_description"
+    android:notificationTimeout="100" />

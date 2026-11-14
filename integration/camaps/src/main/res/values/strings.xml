@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="camaps_accessibility_label">Insertion repas CamAPS (Miam-Miam)</string>
+    <string name="camaps_accessibility_description">Permet à Miam-Miam de saisir, sur votre confirmation vocale, les glucides d\'un repas dans l\'écran « Ajouter un repas » de CamAPS FX, puis d\'appuyer sur « Continuer ». Le service ne lit que les écrans de CamAPS FX, n\'écrit que le champ des glucides et le type de repas, et ne valide jamais de bolus ni d\'insuline.</string>
+</resources>

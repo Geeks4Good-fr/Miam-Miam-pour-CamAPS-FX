@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Réglages</string>
+    <string name="settings_back">Retour</string>
+
+    <string name="settings_nightscout_title">Nightscout</string>
+    <string name="settings_nightscout_intro">Chaque repas confirmé peut être écrit dans Nightscout comme un traitement « Glucides », à la même minute que dans CamAPS FX. L\'application n\'envoie que ce que vous avez validé : ni glycémie, ni insuline.</string>
+
+    <string name="settings_url_label">Adresse du serveur</string>
+    <string name="settings_url_placeholder">https://mon-nightscout.example</string>
+    <string name="settings_url_help">Collez l\'adresse telle qu\'elle est dans le navigateur : le suffixe /api/v1 et un éventuel identifiant devant l\'adresse sont retirés automatiquement.</string>
+
+    <string name="settings_secret_label">Secret d\'API (API_SECRET)</string>
+    <string name="settings_secret_placeholder">API_SECRET</string>
+    <string name="settings_secret_stored">Un secret est déjà enregistré : laissez vide pour le conserver.</string>
+    <string name="settings_secret_help">Le secret est chiffré sur le téléphone (clé du Keystore) et n\'apparaît jamais dans les journaux.</string>
+
+    <string name="settings_credential_type">Type d\'identifiant</string>
+    <string name="settings_credential_api_secret">API_SECRET</string>
+    <string name="settings_credential_token">Token d\'accès</string>
+    <string name="settings_credential_help">Nightscout attend le SHA-1 de l\'API_SECRET ; un token d\'accès part tel quel.</string>
+
+    <string name="settings_enable">Envoyer les repas à Nightscout</string>
+    <string name="settings_simulation">Simulation (aucun envoi réel)</string>
+    <string name="settings_simulation_help">En simulation, tout se passe comme d\'habitude mais rien ne quitte le téléphone. La simulation n\'est active que si l\'envoi l\'est.</string>
+
+    <string name="settings_save">Enregistrer</string>
+    <string name="settings_test">Tester la connexion</string>
+    <string name="settings_testing">Test en cours…</string>
+    <string name="settings_test_success">Connecté à %1$s %2$s</string>
+    <string name="settings_test_units">Unités du serveur : %1$s</string>
+    <string name="settings_test_api_disabled">Attention : l\'API n\'est pas activée sur ce serveur, l\'envoi échouera.</string>
+
+    <string name="settings_forget">Oublier le secret</string>
+
+    <string name="settings_feedback_saved">Réglages enregistrés.</string>
+    <string name="settings_feedback_invalid_url">Adresse invalide : indiquez le serveur, par exemple https://mon-nightscout.example</string>
+    <string name="settings_feedback_missing_secret">Renseignez l\'adresse et le secret avant d\'activer l\'envoi.</string>
+
+    <string name="settings_glooko_title">Import Glooko</string>
+    <string name="settings_glooko_intro">L\'export Glooko contient la pompe heure par heure : glycémies, bolus, glucides, débits, modes et alertes. Chaque passage ajoute ce qui manque et met à jour le reste, sans jamais créer de doublon.</string>
+    <string name="settings_glooko_enable">Importer les données Glooko</string>
+    <string name="settings_glooko_on_meal">Exporter à chaque repas annoncé</string>
+    <string name="settings_glooko_on_meal_help">Le déclencheur normal : un passage suit chaque repas enregistré, quelques minutes plus tard, le temps que la saisie du bolus soit faite dans CamAPS FX. Le fichier couvrant sept jours, un passage manqué ne perd rien.</string>
+    <string name="settings_glooko_cadence">Filet de sécurité</string>
+    <string name="settings_glooko_cadence_help">Un passage périodique, pour les journées où aucun repas n\'est annoncé. Chaque passage ouvre Glooko à l\'écran : inutile de le faire plus souvent que Glooko ne publie.</string>
+    <string name="settings_glooko_window">Fenêtre importée à chaque passage</string>
+    <string name="settings_glooko_window_hours">%1$d h</string>
+    <string name="settings_glooko_cadence_hours">%1$d h</string>
+    <string name="settings_glooko_sgv">Importer aussi les glycémies du fichier</string>
+    <string name="settings_glooko_sgv_help">À laisser désactivé si xDrip+ publie déjà vos glycémies : les deux sources se disputeraient la même courbe.</string>
+    <string name="settings_glooko_dry_run">Simulation (aucune écriture)</string>
+    <string name="settings_glooko_dry_run_help">Le fichier est lu et le rapport rempli, mais rien n\'est envoyé à Nightscout.</string>
+    <string name="settings_glooko_status_never">Aucun import réussi pour l\'instant.</string>
+    <string name="settings_glooko_status_last">Dernier import réussi : %1$s</string>
+    <string name="settings_glooko_status_summary">Dernier passage : %1$s</string>
+    <string name="settings_glooko_sync">Synchroniser maintenant</string>
+    <string name="settings_glooko_accessibility">Réglages d\'accessibilité</string>
+    <string name="settings_glooko_accessibility_off">Service d\'accessibilité « Export Glooko » : désactivé. L\'export automatique ne peut pas tourner ; le partage manuel du CSV reste possible.</string>
+    <string name="settings_glooko_accessibility_on">Service d\'accessibilité « Export Glooko » : activé.</string>
+    <string name="settings_glooko_cartography">Relever les libellés de l\'écran</string>
+    <string name="settings_glooko_cartography_help">Ouvre Glooko et écrit dans un fichier le texte de l\'écran : c\'est avec ce relevé que les libellés de l\'automatisation se règlent.</string>
+    <string name="settings_glooko_cartography_done">Relevé écrit dans %1$s</string>
+
+    <string name="settings_meal_title">Enregistrement du repas</string>
+    <string name="settings_meal_intro">Au quotidien, l\'essentiel va au plus vite. Le mode « Suivi diabétologue » ajoute, pour votre médecin, la description du repas dans le Carnet Glooko et en note Nightscout — à activer les jours avant un rendez-vous, à couper ensuite.</string>
+    <string name="settings_meal_camaps_auto">Insertion automatique dans CamAPS FX</string>
+    <string name="settings_meal_camaps_auto_help">Sur votre confirmation vocale, l\'application saisit les glucides dans « Ajouter un repas » et appuie sur « Continuer ». Elle ne touche jamais au calcul de bolus ni à l\'insuline. Désactivé, CamAPS est seulement ouvert et vous saisissez vous-même.</string>
+    <string name="settings_meal_camaps_accessibility_on">Service d\'accessibilité « Insertion repas CamAPS » : activé.</string>
+    <string name="settings_meal_camaps_accessibility_off">Service d\'accessibilité « Insertion repas CamAPS » : désactivé. L\'insertion automatique ne peut pas tourner tant qu\'il n\'est pas allumé dans Android.</string>
+    <string name="settings_meal_accessibility_button">Réglages d\'accessibilité</string>
+    <string name="settings_meal_suivi">Mode suivi diabétologue</string>
+    <string name="settings_meal_suivi_help">Quand il est activé, la description du repas est enregistrée pour le médecin. Le reste du temps, rien de tout cela : moins de gestes, moins de charge mentale.</string>
+    <string name="settings_meal_glooko">Écrire la description dans le Carnet Glooko</string>
+    <string name="settings_meal_nightscout">Ajouter la description en note Nightscout</string>
+    <string name="settings_meal_photo">Joindre la photo du plat au Carnet Glooko</string>
+
+    <string name="settings_ai_title">Intelligence artificielle</string>
+    <string name="settings_ai_intro">Le dialogue du repas, la lecture des photos, la relecture des glucides et la dictée de secours passent par OpenRouter, avec une seule clé. Créez-la sur openrouter.ai (Keys), ajoutez un peu de crédit : un repas coûte environ un dixième de centime. Ce qui part : la phrase du repas et les photos, jamais de glycémie, de dose ni d\'identifiant.</string>
+    <string name="settings_ai_key_label">Clé OpenRouter</string>
+    <string name="settings_ai_key_help">La clé va dans le Keystore d\'Android : jamais affichée, jamais journalisée, jamais incluse dans une sauvegarde.</string>
+    <string name="settings_ai_key_stored">Clé enregistrée dans le coffre du téléphone. Laissez vide pour la conserver.</string>
+    <string name="settings_ai_save">Enregistrer la clé</string>
+    <string name="settings_ai_check">Vérifier la clé</string>
+    <string name="settings_ai_checking">Vérification auprès d\'OpenRouter…</string>
+    <string name="settings_ai_valid">Clé acceptée par OpenRouter.</string>
+    <string name="settings_ai_valid_credit">Clé acceptée par OpenRouter. Crédit restant sur cette clé : %1$s $.</string>
+    <string name="settings_ai_invalid">Clé non vérifiée : %1$s.</string>
+    <string name="settings_ai_clear">Effacer la clé</string>
+
+    <string name="settings_portions_title">Portions en images</string>
+    <string name="settings_portions_intro">Quand vous dites « un morceau de pain » ou « une assiette de riz », Miam-Miam propose des photos de portions pesées : touchez celle qui ressemble à la vôtre. La banque reste sur le téléphone et passe avant Internet. Ajoutez vos propres photos avec un paquet .zip (modèle : modele-portions.zip).</string>
+    <string name="settings_portions_counts">Base libre : %1$d aliments · importés : %2$d</string>
+    <string name="settings_portions_import">Importer un paquet</string>
+    <string name="settings_portions_export">Exporter</string>
+    <string name="settings_portions_clear">Effacer les aliments importés</string>
+    <string name="settings_portions_credits">Photos de la base libre : Nutrition5k, Google Research (Thames et al., CVPR 2021), licence CC BY 4.0.</string>
+
+    <string name="settings_voice_title">Voix des annonces</string>
+    <string name="settings_voice_intro">Un repas annoncé peut être lu par la voix du téléphone, qui fonctionne hors ligne, ou par Voxtral, la voix de Mistral : plus naturelle, mais le texte part sur Internet. La voix Android reste le repli — une annonce n\'attend jamais le réseau.</string>
+    <string name="settings_voice_engine">Moteur</string>
+    <string name="settings_voice_engine_android">Voix Android (hors ligne)</string>
+    <string name="settings_voice_engine_voxtral">Voix Voxtral (Mistral)</string>
+    <string name="settings_voice_engine_piper">Voix locale Piper (sur le téléphone)</string>
+    <string name="settings_voice_effective_android">Moteur réellement employé : voix Android.</string>
+    <string name="settings_voice_effective_voxtral">Moteur réellement employé : Voxtral.</string>
+    <string name="settings_voice_effective_piper">Moteur réellement employé : Piper, calculé sur le téléphone (voix Android si son modèle manque).</string>
+    <string name="settings_voice_needs_consent">Voxtral ne parlera pas avant le consentement ci-dessous : la voix Android le remplacera.</string>
+    <string name="settings_voice_needs_key">Voxtral ne parlera pas avant l\'enregistrement d\'une clé : la voix Android le remplacera.</string>
+    <string name="settings_voice_voices">Voix de Voxtral</string>
+    <string name="settings_voice_consent">J\'accepte l\'envoi du texte de l\'annonce à Mistral</string>
+    <string name="settings_voice_consent_help">Le texte ne contient que les glucides du repas, par exemple « Repas annoncé : 62 grammes de glucides. » Rien d\'autre n\'est transmis : ni glycémie, ni dose, ni identifiant. Sans cette case, Voxtral ne parle pas.</string>
+    <string name="settings_voice_key_label">Clé API Mistral (facultative : seulement pour la voix Voxtral)</string>
+    <string name="settings_voice_key_placeholder">mstrl_…</string>
+    <string name="settings_voice_key_help">La clé va dans le Keystore d\'Android : jamais affichée, jamais journalisée, jamais incluse dans une sauvegarde.</string>
+    <string name="settings_voice_key_stored">Clé enregistrée dans le coffre du téléphone. Laissez vide pour la conserver.</string>
+    <string name="settings_voice_save_key">Enregistrer la clé</string>
+    <string name="settings_voice_clear_key">Effacer la clé</string>
+    <string name="settings_voice_try">Essai de voix</string>
+    <string name="settings_voice_trying">Lecture en cours…</string>
+    <string name="settings_voice_trial_voxtral">Lu par Voxtral.</string>
+    <string name="settings_voice_trial_piper">Lu par la voix locale Piper.</string>
+    <string name="settings_voice_trial_android">Lu par la voix Android.</string>
+    <string name="settings_voice_trial_none">Rien n\'a été lu : vérifiez que la voix du téléphone est installée.</string>
+    <string name="settings_voice_trial_issue">Cause : %1$s</string>
+    <string name="settings_voice_feedback_key_saved">Clé enregistrée.</string>
+    <string name="settings_voice_feedback_key_cleared">Clé effacée : retour à la voix Android.</string>
+    <string name="settings_voice_feedback_missing_key">Saisissez une clé avant d\'enregistrer.</string>
+    <string name="settings_voice_feedback_consent_required">Cochez le consentement pour que Voxtral parle.</string>
+
+    <!-- Voix de la maison (docs/VOIX-MAISON.md) -->
+    <string name="settings_home_title">Voix de la maison</string>
+    <string name="settings_home_intro">Dicter un repas à l\'enceinte (« Okay Nabu, je mange… ») : le téléphone reste relié à Home Assistant et mène le dialogue par l\'enceinte. Seul « Confirmer » dans CamAPS se fait sur le téléphone. Une notification discrète reste affichée tant que la liaison est active.</string>
+    <string name="settings_home_enabled">Relier le téléphone à la maison</string>
+    <string name="settings_home_url">Adresse de Home Assistant</string>
+    <string name="settings_home_token">Jeton du compte « Meal Announcer »</string>
+    <string name="settings_home_token_replace">Jeton enregistré — en saisir un nouveau</string>
+    <string name="settings_home_save_token">Enregistrer le jeton</string>
+    <string name="settings_home_forget_token">Oublier le jeton</string>
+    <string name="settings_home_test">Tester la liaison</string>
+    <string name="settings_home_testing">Essai en cours…</string>
+    <string name="settings_home_test_ok">Liaison réussie : Home Assistant accepte le jeton.</string>
+    <string name="settings_home_token_saved">Jeton enregistré.</string>
+    <string name="settings_home_token_forgotten">Jeton oublié : la liaison est coupée.</string>
+    <string name="settings_home_needs_setup">Enregistrez d\'abord une adresse valide et le jeton.</string>
+    <string name="settings_home_status_off">Liaison coupée.</string>
+    <string name="settings_home_status_starting">Démarrage de la liaison…</string>
+    <string name="settings_home_status_connecting">Connexion à la maison…</string>
+    <string name="settings_home_status_connected">Relié à la maison : les enceintes peuvent noter un repas.</string>
+    <string name="settings_home_status_retrying">%1$s Nouvel essai bientôt.</string>
+    <string name="settings_home_status_stopped">%1$s Liaison arrêtée.</string>
+    <string name="settings_home_no_notifications">Les notifications de l\'appli sont coupées : un repas dicté à l\'enceinte ne pourra pas ouvrir l\'écran.</string>
+    <string name="settings_home_no_full_screen">Android n\'autorise pas l\'appli à s\'ouvrir par-dessus l\'écran verrouillé : il faudra toucher la notification.</string>
+    <string name="settings_home_open_settings">Ouvrir les réglages Android</string>
+
+    <!-- Destination de l'import Glooko (29/10/2026) -->
+    <string name="settings_glooko_destination">Envoyer les données de Glooko vers</string>
+    <string name="settings_glooko_destination_classic">Nightscout classique</string>
+    <string name="settings_glooko_destination_camaps">Nightscout for CamAPS FX</string>
+    <string name="settings_glooko_destination_classic_help">Pour un Nightscout ordinaire : l\'application convertit elle-même l\'export Glooko en données Nightscout (glycémies, traitements, profil). Attention : des traitements récents peuvent mettre en sourdine les alarmes urgentes de Nightscout et entrer dans l\'insuline et les glucides actifs.</string>
+    <string name="settings_glooko_destination_camaps_help">Pour un Nightscout for CamAPS FX : l\'export Glooko part intact, octet pour octet, et c\'est le serveur qui l\'interprète (aperçu, puis confirmation). Rien n\'est écrit dans les glycémies, les traitements ni le profil. Il faut un jeton de rôle « camaps-uploader ».</string>
+
+    <!-- Mot-clé « miam-miam » (docs/MIAM-MIAM.md) -->
+    <string name="settings_wake_title">Mot-clé « miam-miam »</string>
+    <string name="settings_wake_intro">Écoute hors ligne du mot-clé « miam-miam » sur le téléphone (même écran verrouillé) : dites « Miam-miam, je mange… » d\'une traite ou « Miam-miam » puis votre repas après « Je t\'écoute ». Vous pouvez aussi l\'activer ou le couper depuis la tuile rapide Android « Miam-miam ».</string>
+    <string name="settings_wake_enabled">Écouter « miam-miam » en permanence</string>
+    <string name="settings_wake_status_off">Veille « miam-miam » coupée.</string>
+    <string name="settings_wake_status_starting">Démarrage de la veille « miam-miam »…</string>
+    <string name="settings_wake_status_listening">À l\'écoute : dites « Miam-miam » pour dicter un repas.</string>
+    <string name="settings_wake_status_paused">En pause pendant la dictée ou le dialogue en cours.</string>
+    <string name="settings_wake_model_ok">Modèle vocal hors ligne Vosk français : installé.</string>
+    <string name="settings_wake_model_missing">Modèle Vosk français absent (%1$s).</string>
+    <string name="settings_wake_no_mic">Autorisez le microphone dans Android pour activer « miam-miam ».</string>
+
+    <!-- Mes enseignes et factures de courses -->
+    <string name="settings_shopping_title">Mes enseignes &amp; factures de courses</string>
+    <string name="settings_shopping_intro">Cochez les supermarchés où vous faites vos courses : la base locale Open Food Facts privilégiera automatiquement leurs marques (Carrefour Classic, Marque Repère, U, Chabrior, Sondey…).</string>
+    <string name="settings_shopping_chains_label">Enseignes habituelles</string>
+    <string name="settings_shopping_receipt_title">Importer une facture ou un ticket de caisse</string>
+    <string name="settings_shopping_receipt_help">Facture PDF de Drive ou photo de ticket de caisse : les produits alimentaires achetés sont reliés à la base Open Food Facts et mémorisés dans votre garde-manger personnel.</string>
+    <string name="settings_shopping_import_device">Depuis le téléphone</string>
+    <string name="settings_shopping_import_drive">Depuis Google Drive</string>
+    <string name="settings_shopping_pantry_count">Garde-manger personnel : %1$d produit(s) mémorisé(s) (%2$s…).</string>
+    <string name="settings_shopping_clear_pantry">Vider le garde-manger personnel</string>
+</resources>

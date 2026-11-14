@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="confirmation_title">Confirmer le repas</string>
+    <string name="confirmation_back">Retour</string>
+    <string name="confirmation_total_label">Total à annoncer</string>
+    <string name="confirmation_camaps_value">Valeur à saisir dans CamAPS FX : %1$d g</string>
+    <string name="confirmation_items_title">Détail</string>
+    <string name="confirmation_incomplete_title">Aliments non comptés</string>
+    <string name="confirmation_incomplete_warning">Ces aliments ne sont pas inclus dans le total. Complétez-les ou retirez-les avant d\'enregistrer.</string>
+    <string name="confirmation_save">Enregistrer le repas</string>
+    <string name="confirmation_saving">Enregistrement…</string>
+    <string name="confirmation_saved">Repas enregistré dans l\'historique.</string>
+    <string name="confirmation_saved_hint">L\'annonce dans CamAPS FX reste à faire à la main : cette version ne clique jamais à votre place.</string>
+    <string name="confirmation_open_history">Voir l\'historique</string>
+    <string name="confirmation_new_meal">Composer un autre repas</string>
+    <string name="confirmation_failed">Enregistrement impossible : %1$s</string>
+    <string name="confirmation_no_send">Le repas sera enregistré dans l\'historique. S\'il est activé dans les réglages, il partira aussi vers Nightscout.</string>
+    <string name="confirmation_nightscout_queued">Nightscout : envoi en attente, il partira dès que le réseau le permettra.</string>
+    <string name="confirmation_nightscout_simulated">Nightscout : simulation, rien n\'a quitté le téléphone.</string>
+    <string name="confirmation_nightscout_disabled">Nightscout : désactivé, rien n\'a été envoyé.</string>
+    <string name="confirmation_glooko_scheduled">Glooko sera interrogé dans quelques minutes. Son écran s\'ouvrira un instant : laissez le téléphone tranquille jusque-là.</string>
+    <string name="confirmation_missing">Ce repas a été perdu (application fermée). Revenez à la saisie pour le recomposer.</string>
+    <string name="confirmation_quantity">%1$s %2$s</string>
+    <string name="confirmation_basis_unit">valeur par unité</string>
+    <string name="confirmation_basis_100g">valeur pour 100 g</string>
+    <string name="confirmation_basis_100ml">valeur pour 100 ml</string>
+    <string name="confirmation_unit_gram">g</string>
+    <string name="confirmation_unit_milliliter">ml</string>
+    <plurals name="confirmation_units_unit">
+        <item quantity="one">unité</item>
+        <item quantity="other">unités</item>
+    </plurals>
+    <plurals name="confirmation_units_portion">
+        <item quantity="one">portion</item>
+        <item quantity="other">portions</item>
+    </plurals>
+    <plurals name="confirmation_units_slice">
+        <item quantity="one">tranche</item>
+        <item quantity="other">tranches</item>
+    </plurals>
+    <plurals name="confirmation_units_cup">
+        <item quantity="one">tasse</item>
+        <item quantity="other">tasses</item>
+    </plurals>
+</resources>

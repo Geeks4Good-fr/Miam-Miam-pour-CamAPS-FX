@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_title">Miam-Miam 🍓</string>
+    <string name="home_subtitle">pour CamAPS FX — les glucides de vos repas, aussi dans Nightscout et Glooko</string>
+    <string name="home_offline">Fonctionne hors ligne</string>
+    <string name="home_announce">Annoncer un repas</string>
+    <string name="home_announce_hint">Saisie manuelle : un aliment à la fois</string>
+    <string name="home_assistant">Décrire mon repas à voix haute</string>
+    <string name="home_assistant_hint">L\'IA estime les glucides, vous vérifiez, puis on les écrit dans CamAPS FX</string>
+    <string name="home_history">Historique des repas</string>
+    <string name="home_settings">Réglages</string>
+    <string name="home_warning_title">À lire avant utilisation</string>
+    <string name="home_warning">Cette application aide à saisir et journaliser des glucides. Elle ne calcule pas d\'insuline, ne remplace pas un avis médical et ne valide jamais une action dans CamAPS FX à votre place. Vérifiez toujours les valeurs avant de confirmer.</string>
+
+    <!-- Saisie manuelle d'un repas -->
+    <string name="manual_title">Composer le repas</string>
+    <string name="manual_back">Retour</string>
+    <string name="manual_search_label">Chercher un aliment</string>
+    <string name="manual_search_action">Chercher</string>
+    <string name="manual_search_online">Chercher aussi sur Open Food Facts</string>
+    <string name="manual_search_hint">Les favoris apparaissent en premier ; la recherche en ligne n\'est là que si le produit manque.</string>
+    <string name="manual_results">Résultats</string>
+    <string name="manual_favourites">Favoris</string>
+    <string name="manual_nothing_yet">Aucun aliment pour l\'instant. Cherchez-en un ci-dessus.</string>
+    <string name="manual_add">Ajouter</string>
+    <string name="manual_remove">Retirer</string>
+    <string name="manual_quantity">Quantité</string>
+    <string name="manual_unit">Unité</string>
+    <string name="manual_meal_section">Le repas</string>
+    <string name="manual_total_label">Total du repas</string>
+    <string name="manual_total_unresolved">dont %1$d aliment(s) non chiffré(s)</string>
+    <string name="manual_camaps_value">Valeur à saisir dans CamAPS FX : %1$d g</string>
+    <string name="manual_empty_total">Aucun glucide calculable pour l\'instant</string>
+    <string name="manual_continue">Continuer</string>
+    <string name="manual_next_step">L\'étape suivante relit le repas avant de l\'enregistrer. Rien n\'est encore envoyé vers CamAPS FX, Nightscout ou Glooko.</string>
+    <string name="manual_search_failed">Open Food Facts injoignable : la recherche locale reste disponible.</string>
+    <string name="manual_no_result">Aucun produit trouvé.</string>
+    <string name="manual_unit_unit">unité</string>
+    <string name="manual_unit_gram">g</string>
+    <string name="manual_unit_milliliter">ml</string>
+    <string name="manual_unit_portion">portion</string>
+    <string name="manual_unit_cup">tasse</string>
+    <string name="manual_unit_slice">tranche</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Miam-Miam pour CamAPS FX</string>
+    <string name="home_announce_unavailable">Cette étape arrive à un prochain jalon : rien n\'a été envoyé.</string>
+</resources>

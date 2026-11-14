@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Module de conversion et d'import : aucune activité, aucun service, aucune permission.
+    Il ne fait que du calcul et des appels HTTP déjà déclarés par `:data:nightscout`.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

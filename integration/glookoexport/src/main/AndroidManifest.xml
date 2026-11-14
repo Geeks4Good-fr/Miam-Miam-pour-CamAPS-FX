@@ -1,0 +1,73 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- L'application Glooko doit rester visible pour que l'automatisation la pilote. -->
+    <queries>
+        <!-- Relevé sur l'appareil : le paquet ne contient pas « glooko », seule la classe
+             `glooko.xt.pages.main.MainActivity` le porte. -->
+        <package android:name="com.diabnext.diabnext" />
+        <package android:name="com.glooko.app" />
+        <package android:name="com.glooko.glookoapp" />
+        <package android:name="com.glooko.android" />
+    </queries>
+
+    <application>
+
+        <!--
+            Service d'accessibilité : il ne fait rien de lui-même. Il expose l'arbre de
+            l'écran, et c'est l'automatisation qui décide, libellé par libellé, de ce qu'elle
+            touche. Aucun écran de CamAPS FX n'est concerné.
+        -->
+        <service
+            android:name=".GlookoAccessibilityService"
+            android:exported="true"
+            android:label="@string/glooko_accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/glooko_accessibility_service" />
+        </service>
+
+        <service
+            android:name=".GlookoExportService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+            Reçoit le CSV que Glooko remet par la feuille de partage.
+
+            Ce doit être une **activité** : la feuille de partage ne liste que celles-ci, un
+            récepteur exporté n'y apparaît jamais (constaté sur l'appareil). Elle est
+            transparente, importe le fichier puis se referme.
+        -->
+        <activity
+            android:name=".GlookoShareActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <!--
+                    Glooko ne déclare pas `text/csv` : sa feuille de partage ne propose que les
+                    applications qui acceptent tout (relevé sur l'appareil le 24/10/2026, où
+                    « Meal Announcer » restait absent du sélecteur malgré ses types déclarés).
+                    L'activité ne fait rien d'autre qu'importer, et l'import refuse un fichier
+                    qui n'est pas un CSV Glooko : il vaut mieux être proposé que jamais atteint.
+                -->
+                <data android:mimeType="*/*" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="text/comma-separated-values" />
+                <data android:mimeType="application/csv" />
+                <data android:mimeType="application/vnd.ms-excel" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

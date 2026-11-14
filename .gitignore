@@ -1,0 +1,31 @@
+# Gradle / Android
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+
+# Réglages propres à la machine (chemin du SDK)
+local.properties
+
+# Signature : ne jamais publier la clé privée ni ses mots de passe
+mealannouncer.jks
+*.jks
+*.keystore
+keystore.properties
+
+# Bibliothèque native sherpa-onnx (50 Mo) : à retélécharger, voir docs/VOIX-LOCALE.md
+/app/libs/*.aar
+
+# Divers
+*.log
+*.hprof
+.DS_Store
+Thumbs.db
+
+# Traces de travail locales (journaux de compilation, captures d'essai à la racine)
+/build-*.txt
+/*.png
+.kotlin/

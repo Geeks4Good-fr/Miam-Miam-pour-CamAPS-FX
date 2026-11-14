@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Libellés de l'écran « repas dicté ». Les messages variables (erreurs, avertissements)
+     sont composés en français par le ViewModel, comme dans le reste de l'application. -->
+<resources>
+    <string name="assistant_title">Repas dicté</string>
+    <string name="assistant_subtitle">Dites ce que vous allez manger. L\'application cherche les glucides, puis vous demande les portions qui manquent.</string>
+    <string name="assistant_speak">Parler</string>
+    <string name="assistant_stop">J\'écoute — appuyez pour arrêter</string>
+    <string name="assistant_transcribing">Transcription…</string>
+    <string name="assistant_analysing">Recherche des aliments…</string>
+    <string name="assistant_progress">%1$s (%2$d sur %3$d)</string>
+    <string name="assistant_base_count">Base locale Open Food Facts : %1$d produits (recherche hors ligne)</string>
+    <string name="assistant_base_missing">Base locale Open Food Facts absente : chaque aliment part sur Internet (voir docs/OFF-LOCAL.md)</string>
+    <string name="assistant_transcript_label">Ce que vous avez dit</string>
+    <string name="assistant_reanalyse">Relire cette phrase</string>
+    <string name="assistant_quantity_label">Quantité</string>
+    <string name="assistant_origin_off_offline">Open Food Facts (hors ligne)</string>
+    <string name="assistant_origin_off_online">Open Food Facts (en ligne)</string>
+    <string name="assistant_origin_web">Internet</string>
+    <string name="assistant_origin_general">Estimation</string>
+    <string name="assistant_origin_none">Valeur manquante</string>
+    <string name="assistant_source">Source : %1$s</string>
+    <string name="assistant_total">Total : %1$s g de glucides</string>
+    <string name="assistant_camaps_value">À écrire dans CamAPS : %1$d g</string>
+    <string name="assistant_unresolved">%1$d aliment(s) non compté(s) : le total est incomplet.</string>
+    <string name="assistant_rejected">Aliments non reconnus : %1$s</string>
+    <string name="assistant_warnings">Remarques</string>
+    <string name="assistant_announce">Annoncer à voix haute</string>
+    <string name="assistant_write_camaps">Écrire dans CamAPS</string>
+    <string name="assistant_restart">Recommencer</string>
+    <string name="assistant_back">Retour</string>
+    <string name="assistant_manual_hint">CamAPS est ouvert : saisissez la valeur dans « Ajouter un repas », puis confirmez vous-même.</string>
+    <string name="assistant_no_key">Clé OpenRouter absente. Réglez-la dans Réglages → Intelligence artificielle, puis revenez ici.</string>
+    <string name="assistant_empty">Aucun aliment pour l\'instant.</string>
+    <string name="assistant_reminder">L\'application ne calcule jamais d\'insuline et ne valide jamais un repas à votre place.</string>
+    <string name="assistant_portions_title">Préciser les portions</string>
+    <string name="assistant_portions_hint">%1$d aliment(s) sans quantité. L\'assistant vous les demande un par un, à voix haute : poids, nombre d\'articles, fraction ou pourcentage.</string>
+    <string name="assistant_portions_start">Répondre à voix haute</string>
+    <string name="assistant_portions_stop">Arrêter le dialogue</string>
+    <string name="assistant_dialogue_title">Question sur %1$s</string>
+    <string name="assistant_dialogue_speaking">Je pose la question…</string>
+    <string name="assistant_dialogue_listening">Je vous écoute…</string>
+    <string name="assistant_dialogue_thinking">Je réfléchis…</string>
+    <string name="assistant_dialogue_manual">La reconnaissance vocale du téléphone n\'a pas répondu : touchez « Parler » ci-dessus pour répondre, puis arrêtez l\'enregistrement.</string>
+    <string name="assistant_dialogue_heard">Entendu : « %1$s »</string>
+    <string name="assistant_camaps_confirm_title">Confirmation vocale CamAPS</string>
+    <string name="assistant_camaps_confirm_cancel">Annuler</string>
+    <string name="assistant_conversation_title">Conversation avec l\'assistant</string>
+    <string name="assistant_conversation_stop">Arrêter la conversation</string>
+    <string name="assistant_reject_product">Pas ce produit</string>
+    <string name="assistant_weight_guessed">Poids d\'une pièce estimé : la fiche ne le donne pas.</string>
+    <string name="assistant_precise_by_photo">Photographier l\'emballage pour préciser</string>
+    <string name="assistant_carbs_guessed">Fiche introuvable : glucides estimés (moyenne). Le tableau nutritionnel donnerait la vraie valeur.</string>
+    <string name="assistant_photo_package">Photographier l\'emballage</string>
+    <string name="assistant_photo_seen">Ce que la photo montre</string>
+    <string name="assistant_photo_camera">Photographier l\'assiette</string>
+    <string name="assistant_photo_pick">Choisir une photo</string>
+    <string name="assistant_photo_title">D\'après la photo</string>
+    <string name="assistant_photo_busy">Lecture de la photo…</string>
+    <string name="assistant_photo_hint">Rien n\'est compté tant que vous n\'avez pas ajouté ces aliments : vérifiez les poids proposés, la photo peut se tromper.</string>
+    <string name="assistant_photo_confirm">Ajouter ces aliments</string>
+    <string name="assistant_photo_discard">Écarter</string>
+    <string name="assistant_photo_total">Total proposé : %1$s g de glucides (%2$d aliment(s) chiffré(s))</string>
+    <string name="assistant_photo_missing">valeur manquante</string>
+</resources>

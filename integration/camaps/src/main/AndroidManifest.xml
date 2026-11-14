@@ -1,0 +1,34 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        CamAPS FX doit rester visible pour que la porte puisse l'ouvrir et lire son écran
+        (visibilité des paquets, obligatoire depuis Android 11).
+    -->
+    <queries>
+        <package android:name="com.camdiab.fx_alert.mgdl" />
+        <package android:name="com.camdiab.fx.alert.mgdl" />
+        <package android:name="com.camdiab.fx.alert" />
+    </queries>
+
+    <application>
+
+        <!--
+            Service d'accessibilité : il n'agit pas de lui-même. Il expose l'arbre de l'écran de
+            CamAPS quand l'automatisation le demande, et l'automatisation s'arrête AVANT tout
+            écran qui dose de l'insuline. Désactivé tant que l'utilisateur ne l'allume pas dans
+            les réglages d'accessibilité d'Android.
+        -->
+        <service
+            android:name=".CamapsAccessibilityService"
+            android:exported="true"
+            android:label="@string/camaps_accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/camaps_accessibility_service" />
+        </service>
+    </application>
+</manifest>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="history_title">Historique</string>
+    <string name="history_back">Retour</string>
+    <string name="history_empty">Aucun repas enregistré pour l\'instant.</string>
+    <string name="history_empty_hint">Les repas confirmés apparaissent ici, avec leur total et leur détail.</string>
+    <plurals name="history_count">
+        <item quantity="one">%1$d repas enregistré</item>
+        <item quantity="other">%1$d repas enregistrés</item>
+    </plurals>
+    <string name="history_delete">Supprimer</string>
+    <string name="history_delete_title">Supprimer ce repas ?</string>
+    <string name="history_delete_message">« %1$s » (%2$s g) sera retiré de l\'historique. Cette action ne peut pas être annulée.</string>
+    <string name="history_delete_confirm">Supprimer</string>
+    <string name="history_delete_cancel">Annuler</string>
+    <string name="history_camaps_value">%1$d g dans CamAPS FX</string>
+    <string name="history_manual_total">Total corrigé à la main</string>
+    <string name="history_nightscout_pending">Nightscout : envoi en attente</string>
+    <string name="history_nightscout_sent">Nightscout : envoyé</string>
+    <string name="history_nightscout_failed">Nightscout : échec de l\'envoi</string>
+    <string name="history_nightscout_duplicate">Nightscout : doublon possible, envoi suspendu</string>
+</resources>

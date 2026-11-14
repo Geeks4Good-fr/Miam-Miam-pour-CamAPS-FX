@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="glooko_accessibility_label">Export Glooko (Miam-Miam)</string>
+    <string name="glooko_accessibility_description">Permet à Miam-Miam de déclencher l’export des données Glooko toutes les quinze minutes, sans jamais toucher à CamAPS FX. Le service ne lit que les écrans de l’application Glooko, et seulement pendant l’export.</string>
+
+    <string name="glooko_channel_name">Export Glooko</string>
+    <string name="glooko_channel_description">Import des données de pompe Glooko vers Nightscout</string>
+    <string name="glooko_notification_title">Export Glooko</string>
+    <string name="glooko_notification_running">Export en cours…</string>
+</resources>

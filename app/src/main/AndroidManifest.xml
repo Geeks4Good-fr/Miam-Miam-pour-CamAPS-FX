@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Micro : la dictée du repas part chez Mistral (Voxtral) ; les réponses du dialogue de
+         portion passent par la reconnaissance vocale du téléphone, qui reste locale. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Écriture dans le Nightscout personnel de l'utilisateur, et Open Food Facts. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Notification persistante optionnelle et rappels. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Voix de la maison (docs/VOIX-MAISON.md) et mot-clé « miam-miam » (docs/MIAM-MIAM.md) :
+         liaison permanente avec Home Assistant et écoute hors ligne dans un service au premier
+         plan, relancés au démarrage du téléphone, et écran du repas ouvert au-dessus du
+         verrouillage. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Visibilité des applications tierces que l'on ouvre (CamAPS FX, Glooko). -->
+    <queries>
+        <package android:name="com.camdiab.fx_alert.mgdl" />
+        <package android:name="com.camdiab.fx.alert.mgdl" />
+        <package android:name="com.camdiab.fx.alert" />
+        <package android:name="com.glooko.glooko" />
+        <!-- La reconnaissance vocale du téléphone, que le dialogue de portion utilise. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".MealAnnouncerApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MealAnnouncer">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Liaison avec Home Assistant. « Usage particulier » : une WebSocket qui attend une phrase
+            dite à une enceinte n'est ni une synchronisation (limitée à 6 h par jour depuis
+            Android 15) ni un appareil connecté.
+        -->
+        <service
+            android:name=".home.HomeLinkService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Liaison permanente avec Home Assistant pour dicter un repas à une enceinte de la maison" />
+        </service>
+
+        <!--
+            Écoute permanente hors ligne du mot-clé « miam-miam » (Vosk) sur le téléphone.
+        -->
+        <service
+            android:name=".wake.WakeWordService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!--
+            Tuile de raccourcis rapides Android (« Quick Settings ») pour activer ou couper
+            l'écoute « miam-miam » d'un geste.
+        -->
+        <service
+            android:name=".wake.WakeWordTileService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_btn_speak_now"
+            android:label="Miam-miam"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".home.HomeLinkBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".wake.WakeWordBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            L'appareil photo écrit la photo d'assiette dans le cache de l'application, jamais
+            dans la galerie. Le fournisseur ne partage que ce sous-dossier, et seulement avec
+            l'application d'appareil photo, le temps de la prise de vue.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/photo_paths" />
+        </provider>
+
+        <!--
+            WorkManager est initialisé par l'application elle-même (Configuration.Provider),
+            afin qu'il reçoive la fabrique Hilt. Sans cette suppression, AndroidX.Startup
+            l'initialiserait avant nous, sans les dépendances de nos workers.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+    </application>
+
+</manifest>
