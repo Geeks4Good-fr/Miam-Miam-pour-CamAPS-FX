@@ -210,7 +210,6 @@ class OffDatabase @Inject constructor(
             database?.let { return it }
             val fichier = file()
             if (!fichier.isFile) {
-                unavailable = true
                 return null
             }
             try {
@@ -226,6 +225,19 @@ class OffDatabase @Inject constructor(
                 fail(error)
                 null
             }
+        }
+    }
+
+    /**
+     * Réinitialise la connexion après l'installation ou la mise à jour de `off-base.db` par
+     * l'assistant d'installation intégré.
+     */
+    fun reload() {
+        synchronized(this) {
+            runCatching { database?.close() }
+            database = null
+            unavailable = false
+            lastIssue = null
         }
     }
 

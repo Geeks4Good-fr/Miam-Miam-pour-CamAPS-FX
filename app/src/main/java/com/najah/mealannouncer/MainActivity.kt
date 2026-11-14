@@ -63,8 +63,11 @@ import com.najah.mealannouncer.feature.settings.VoiceActions
 import com.najah.mealannouncer.feature.settings.WakeWordActions
 import com.najah.mealannouncer.feature.settings.WakeWordSettingsViewModel
 import com.najah.mealannouncer.feature.settings.AiKeySettingsViewModel
+import com.najah.mealannouncer.feature.settings.OfflinePack
 import com.najah.mealannouncer.feature.settings.PortionsActions
 import com.najah.mealannouncer.feature.settings.PortionsSettingsViewModel
+import com.najah.mealannouncer.feature.settings.SetupWizardScreen
+import com.najah.mealannouncer.feature.settings.SetupWizardViewModel
 import com.najah.mealannouncer.feature.settings.ShoppingActions
 import com.najah.mealannouncer.feature.settings.ShoppingSettingsViewModel
 import com.najah.mealannouncer.home.HomeLinkService
@@ -95,6 +98,7 @@ class MainActivity : ComponentActivity() {
     private val aiKeyViewModel: AiKeySettingsViewModel by viewModels()
     private val portionsViewModel: PortionsSettingsViewModel by viewModels()
     private val shoppingViewModel: ShoppingSettingsViewModel by viewModels()
+    private val setupWizardViewModel: SetupWizardViewModel by viewModels()
 
     @Inject
     lateinit var homeVoice: HomeVoiceConfigStore
@@ -165,6 +169,7 @@ class MainActivity : ComponentActivity() {
                     aiKeyViewModel = aiKeyViewModel,
                     portionsViewModel = portionsViewModel,
                     shoppingViewModel = shoppingViewModel,
+                    setupWizardViewModel = setupWizardViewModel,
                     homeMealRequests = homeMealRequests.intValue,
                 )
             }
@@ -184,10 +189,19 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Un repas dicté à une enceinte ou déclenché par « miam-miam » : l'écran s'ouvre par-dessus le
-     * verrouillage.
+     * Un repas dicté à une enceinte ou déclenché par « miam-miam » ouvre l'écran par-dessus le
+     * verrouillage ; le retour `miammiam://openrouter-auth?code=…` finalise la connexion OpenRouter.
      */
     private fun handleIncomingMealIntent(intent: Intent?) {
+        val data = intent?.data
+        if (data?.scheme == "miammiam" && data.host == "openrouter-auth") {
+            val code = data.getQueryParameter("code")
+            if (!code.isNullOrBlank()) {
+                aiKeyViewModel.exchangeOAuthCode(code)
+                setupWizardViewModel.refresh()
+            }
+            return
+        }
         val action = intent?.action
         if (action != HomeLinkService.ACTION_HOME_MEAL && action != WakeWordService.ACTION_WAKE_WORD) return
         setShowWhenLocked(true)
@@ -202,6 +216,7 @@ private const val ROUTE_ASSISTANT = "assistant"
 private const val ROUTE_CONFIRMATION = "confirmation"
 private const val ROUTE_HISTORY = "history"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_SETUP = "setup"
 
 @Composable
 private fun AppRoot(
@@ -215,9 +230,18 @@ private fun AppRoot(
     aiKeyViewModel: AiKeySettingsViewModel,
     portionsViewModel: PortionsSettingsViewModel,
     shoppingViewModel: ShoppingSettingsViewModel,
+    setupWizardViewModel: SetupWizardViewModel,
     homeMealRequests: Int,
 ) {
-    var route by rememberSaveable { mutableStateOf(ROUTE_HOME) }
+    var route by rememberSaveable {
+        mutableStateOf(
+            if (homeMealRequests == 0 && setupWizardViewModel.shouldOpenAtStartup()) {
+                ROUTE_SETUP
+            } else {
+                ROUTE_HOME
+            },
+        )
+    }
     LaunchedEffect(homeMealRequests) {
         if (homeMealRequests > 0) route = ROUTE_ASSISTANT
     }
@@ -406,6 +430,51 @@ private fun AppRoot(
                     )
                 }
 
+                ROUTE_SETUP -> {
+                    val wizardState by setupWizardViewModel.state.collectAsStateWithLifecycle()
+                    val aiKeyState by aiKeyViewModel.state.collectAsStateWithLifecycle()
+                    var pendingPackForZip by remember { mutableStateOf<OfflinePack?>(null) }
+                    val importOfflinePackZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                        val targetPack = pendingPackForZip
+                        pendingPackForZip = null
+                        if (uri != null && targetPack != null) {
+                            setupWizardViewModel.importPackFromUri(targetPack, uri)
+                        }
+                    }
+                    val micPermission = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) {
+                        setupWizardViewModel.refresh()
+                        wakeWordViewModel.refresh()
+                    }
+                    val finishSetup = {
+                        setupWizardViewModel.dismissStartup()
+                        route = ROUTE_HOME
+                    }
+                    BackHandler { finishSetup() }
+                    SetupWizardScreen(
+                        wizardState = wizardState,
+                        aiKeyState = aiKeyState,
+                        aiKeyActions = aiKeyViewModel.actions(),
+                        onInstallAllRequired = setupWizardViewModel::installAllRequired,
+                        onInstallPack = setupWizardViewModel::installPack,
+                        onImportPackZip = { pack ->
+                            pendingPackForZip = pack
+                            importOfflinePackZip.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+                        },
+                        onCancelInstall = setupWizardViewModel::cancelInstall,
+                        onRequestMicPermission = {
+                            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        onOpenNotifications = setupWizardViewModel::openNotificationSettings,
+                        onOpenAppDetails = setupWizardViewModel::openAppDetailsSettings,
+                        onOpenAccessibility = setupWizardViewModel::openAccessibilitySettings,
+                        onRefresh = setupWizardViewModel::refresh,
+                        onFinish = finishSetup,
+                        modifier = Modifier.padding(innerPadding),
+                    )
+                }
+
                 ROUTE_SETTINGS -> {
                     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
                     val homeVoiceState by homeVoiceViewModel.state.collectAsStateWithLifecycle()
@@ -413,6 +482,7 @@ private fun AppRoot(
                     val aiKeyState by aiKeyViewModel.state.collectAsStateWithLifecycle()
                     val portionsState by portionsViewModel.state.collectAsStateWithLifecycle()
                     val shoppingState by shoppingViewModel.state.collectAsStateWithLifecycle()
+                    val wizardState by setupWizardViewModel.state.collectAsStateWithLifecycle()
                     // Paquets de portions : le sélecteur de fichiers d'Android, sans permission de stockage.
                     val importPack = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                         uri?.let(portionsViewModel::import)
@@ -431,6 +501,7 @@ private fun AppRoot(
                         ActivityResultContracts.RequestPermission(),
                     ) { granted ->
                         wakeWordViewModel.refresh()
+                        setupWizardViewModel.refresh()
                         if (granted) wakeWordViewModel.onEnabledChange(true)
                     }
                     BackHandler { route = ROUTE_HOME }
@@ -456,7 +527,10 @@ private fun AppRoot(
                             onOpenAccessibility = settingsViewModel::openAccessibilitySettings,
                             onCartography = settingsViewModel::dumpGlookoCartography,
                         ),
-                        onRefreshGlooko = settingsViewModel::refreshGlooko,
+                        onRefreshGlooko = {
+                            settingsViewModel.refreshGlooko()
+                            setupWizardViewModel.refresh()
+                        },
                         voiceActions = VoiceActions(
                             onEngineChange = settingsViewModel::onVoiceEngineChange,
                             onVoiceChange = settingsViewModel::onVoiceChange,
@@ -536,6 +610,8 @@ private fun AppRoot(
                             },
                             onClearPantry = shoppingViewModel::clearPantry,
                         ),
+                        setupWizard = wizardState,
+                        onOpenSetupWizard = { route = ROUTE_SETUP },
                     )
                 }
 

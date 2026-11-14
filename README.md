@@ -7,8 +7,8 @@ on décrit son repas à voix haute — *« Miam-miam, deux pains au chocolat et 
 et l'application trouve les glucides, les dit, puis les inscrit dans CamAPS FX, dans le Carnet
 Glooko et, si on le souhaite, dans Nightscout.
 
-> **Version 0.12.0 (10 novembre 2026).** Le détail de chaque version est dans
-> [`CHANGELOG.md`](CHANGELOG.md), les raisons de chaque choix dans
+> **Version 0.14.0 (14 novembre 2026) — Installation tout-en-un sans ordinateur.** Le détail de
+> chaque version est dans [`CHANGELOG.md`](CHANGELOG.md), les raisons de chaque choix dans
 > [`docs/DECISIONS.md`](docs/DECISIONS.md) (49 décisions).
 
 ---
@@ -16,11 +16,11 @@ Glooko et, si on le souhaite, dans Nightscout.
 ## Sommaire
 
 1. [Pourquoi cette application](#pourquoi-cette-application)
-2. [Ce qu'elle ne fait pas — et ne fera pas](#ce-quelle-ne-fait-pas--et-ne-fera-pas)
-3. [Un repas, du début à la fin](#un-repas-du-début-à-la-fin)
-4. [D'où viennent les glucides](#doù-viennent-les-glucides)
-5. [Les fonctions une par une](#les-fonctions-une-par-une)
-6. [Installer et préparer le téléphone](#installer-et-préparer-le-téléphone)
+2. [Installer et configurer en 4 étapes (sans ordinateur)](#installer-et-configurer-en-4-étapes-sans-ordinateur)
+3. [Ce qu'elle ne fait pas — et ne fera pas](#ce-quelle-ne-fait-pas--et-ne-fera-pas)
+4. [Un repas, du début à la fin](#un-repas-du-début-à-la-fin)
+5. [D'où viennent les glucides](#doù-viennent-les-glucides)
+6. [Les fonctions une par une](#les-fonctions-une-par-une)
 7. [Les réglages](#les-réglages)
 8. [Données personnelles, réseau et coûts](#données-personnelles-réseau-et-coûts)
 9. [Suivre ce qui se passe (journaux)](#suivre-ce-qui-se-passe-journaux)
@@ -48,6 +48,83 @@ Miam-Miam fait ce travail de comptage et de saisie :
 - **un second avis** (une autre IA, de type « diététicien ») relit chaque repas avant l'annonce ;
 - **la saisie** dans CamAPS FX et dans le Carnet Glooko est faite par l'application — mais c'est
   **vous** qui confirmez dans CamAPS.
+
+---
+
+## Installer et configurer en 4 étapes (sans ordinateur)
+
+Depuis la version **0.14.0**, toute l'installation se fait **directement sur le téléphone**, sans
+ordinateur, sans câble USB et sans ligne de commande.
+
+### 1. Installer l'APK sur le téléphone
+
+Télécharger **`Miam-Miam-0.14.0-arm64.apk`** depuis la page des
+[versions publiées](https://github.com/Geeks4Good-fr/Miam-Miam-pour-CamAPS-FX/releases) directement
+dans le navigateur du téléphone et l'ouvrir (Android demande d'autoriser l'installation depuis cette
+source).
+
+> Sur une installation déjà existante, **tous vos réglages, votre clé OpenRouter et votre
+> garde-manger sont conservés** lors de la mise à jour.
+
+### 2. Suivre l'Assistant d'installation intégré (4 étapes)
+
+Au premier lancement — et à tout moment tout en haut de l'écran **Réglages** — l'**Assistant
+d'installation pas à pas** prépare votre téléphone :
+
+| Étapes 1 et 2 (OpenRouter 1 clic & téléchargement hors ligne) | Étapes 3 et 4 (Autorisations & Accessibilité CamAPS / Glooko) |
+| :-: | :-: |
+| ![Assistant d'installation — Étapes 1 et 2](docs/images/assistant-etapes-1-2.png) | ![Assistant d'installation — Étapes 3 et 4](docs/images/assistant-etapes-3-4.png) |
+
+1. **Étape 1 — Intelligence artificielle (OpenRouter en 1 clic) :**
+   - Toucher **« Se connecter à OpenRouter en 1 clic »** : la page officielle d'OpenRouter s'ouvre
+     dans le navigateur (flux **OAuth PKCE**), vous vous connectez, et la clé d'API revient toute
+     seule dans Miam-Miam où elle est chiffrée dans le **Keystore Android** sans avoir à la copier.
+   - Vous pouvez aussi coller manuellement une clé `sk-or-v1-…`.
+2. **Étape 2 — Bases et voix hors ligne (sans PC) :**
+   - Toucher **« Tout télécharger et installer automatiquement »** (Wi-Fi conseillé, ~420 Mo
+     compressés). L'application télécharge les archives depuis GitHub, vérifie leur empreinte
+     **SHA-256** et les décompresse dans son dossier :
+     - **`kroko-fr.zip`** (52 Mo) → dictée vocale hors ligne sur le téléphone (~1 s de calcul) ;
+     - **`off-base.db.zip`** (310 Mo compressés → 653 Mo) → 3,06 millions de produits Open Food
+       Facts hors ligne (activée aussitôt sans redémarrer l'application) ;
+     - **`vosk-model-fr.zip`** (40 Mo) → écoute hors ligne du mot-clé *« Miam-miam »* ;
+     - **`piper-fr-upmc.zip`** (77 Mo, facultatif) → voix française locale Piper.
+   - Comme c'est l'application elle-même qui crée ces fichiers, **les permissions Linux sont bonnes
+     d'office** (aucun `adb push` ni `chmod` requis). Un bouton *« Choisir un .zip local »* permet
+     aussi d'importer une archive déjà présente sur le téléphone.
+3. **Étape 3 — Microphone et notifications :**
+   - Deux boutons demandent directement l'accès au microphone (pour dicter le repas) et aux
+     notifications (pour le suivi et l'écoute du mot-clé).
+4. **Étape 4 — Saisie automatique CamAPS FX & Glooko (optionnel) :**
+   - **Astuce Android 13+ (« Paramètres restreints ») :** sur Android 13 et plus, le système grise
+     par défaut les services d'accessibilité d'un APK installé hors Play Store. L'assistant propose
+     deux boutons numérotés dans l'ordre :
+     1. **« 1. Ouvrir la fiche de l'appli (Paramètres restreints) »** → toucher le menu `⋮` en haut
+        à droite → *« Autoriser les paramètres restreints »* ;
+     2. **« 2. Ouvrir les réglages d'Accessibilité Android »** → activer **« Insertion repas CamAPS
+        (Miam-Miam) »** et **« Export Glooko (Miam-Miam) »**.
+   - **Diagnostic après mise à jour :** si Android laisse un service coché après une mise à jour
+     d'APK mais cesse de le relier en arrière-plan, l'assistant le détecte (*« Coché dans Android
+     mais décroché »*) et vous invite à le décocher puis le recocher.
+
+<details>
+<summary>Installation manuelle par câble USB (adb, pour les développeurs)</summary>
+
+```powershell
+adb install -r Miam-Miam-0.14.0-arm64.apk
+```
+
+Si vous copiez les dossiers à la main par `adb push` dans
+`/sdcard/Android/data/com.najah.mealannouncer/files/`, ils appartiennent à l'utilisateur `shell` et
+ne sont pas lisibles par l'application sans `chmod` :
+
+```bash
+adb shell 'cd /sdcard/Android/data/com.najah.mealannouncer/files && \
+  find sherpa vosk-model-fr -type d -exec chmod 777 {} \; && \
+  find sherpa vosk-model-fr -type f -exec chmod 666 {} \; && chmod 666 off-base.db'
+```
+
+</details>
 
 ---
 
@@ -212,70 +289,12 @@ Quelques règles importantes :
 
 ---
 
-## Installer et préparer le téléphone
-
-L'application n'est pas sur le Play Store. Elle se télécharge depuis la page des
-[versions publiées](https://github.com/Geeks4Good-fr/Miam-Miam-pour-CamAPS-FX/releases) du dépôt (APK arm64).
-
-### 1. Installer l'APK
-
-Copier `Miam-Miam-…-arm64.apk` sur le téléphone et l'ouvrir ; Android demande d'autoriser
-l'installation depuis cette source. Ou depuis un PC :
-
-```powershell
-adb install -r Miam-Miam-0.12.0-arm64.apk
-```
-
-> L'APK publié porte l'identifiant `com.najah.mealannouncer` ; l'APK de mise au point
-> (`com.najah.mealannouncer.debug`) peut coexister avec lui. Ce sont **deux applications
-> distinctes** : réglages, garde-manger et fichiers ne sont pas partagés.
-
-### 2. Copier les gros fichiers (une fois)
-
-Ils sont trop lourds pour l'APK et se posent dans le dossier de l'application
-(`/sdcard/Android/data/<identifiant>/files/`) :
-
-| Fichier / dossier | Rôle | Taille | Comment le fabriquer |
-| :-- | :-- | :-- | :-- |
-| `off-base.db` | Open Food Facts hors ligne | 653 Mo | [`docs/OFF-LOCAL.md`](docs/OFF-LOCAL.md) |
-| `vosk-model-fr/` | mot-clé « miam-miam » | 41 Mo | `vosk-model-small-fr-0.22`, [`docs/MIAM-MIAM.md`](docs/MIAM-MIAM.md) |
-| `sherpa/kroko-fr/` | dictée sur le téléphone | — | [`docs/VOIX-LOCALE.md`](docs/VOIX-LOCALE.md) |
-| `sherpa/piper-fr-upmc/` | voix Piper (facultative) | — | [`docs/VOIX-LOCALE.md`](docs/VOIX-LOCALE.md) |
-
-> ⚠️ **Piège vérifié :** un dossier copié par `adb push` n'est pas lisible par l'application. Sans
-> correction, la dictée et la voix locales retombent **en silence** sur leurs secours. Après chaque
-> copie :
->
-> ```bash
-> adb shell 'cd /sdcard/Android/data/com.najah.mealannouncer/files && \
->   find sherpa vosk-model-fr -type d -exec chmod 777 {} \; && \
->   find sherpa vosk-model-fr -type f -exec chmod 666 {} \; && chmod 666 off-base.db'
-> ```
-
-### 3. Coller la clé OpenRouter
-
-Réglages → **Intelligence artificielle** → coller la clé, puis **« Vérifier la clé »**. Une seule
-clé sert à la conversation, aux photos, aux estimations, à la relecture et à la dictée de
-secours. Une clé Mistral n'est utile que pour la voix Voxtral.
-
-### 4. Activer les services d'accessibilité (si l'on veut la saisie automatique)
-
-Paramètres Android → Accessibilité → activer **« Insertion repas CamAPS (Miam-Miam) »** et
-**« Export Glooko (Miam-Miam) »**, puis dans Miam-Miam : Réglages → **Enregistrement du repas**.
-
-> ⚠️ **Piège vérifié :** après une **mise à jour de l'APK** ou un **arrêt forcé** de l'application,
-> Android laisse ces services cochés mais **ne les relance plus** : le Carnet Glooko n'est alors
-> plus rempli, sans message clair. Ouvrir Miam-Miam, puis décocher et recocher les deux services.
-> Vérification par adb : `adb shell dumpsys accessibility` doit lister les deux libellés dans
-> « Bound services ».
-
----
-
 ## Les réglages
 
 | Section | Ce qu'on y règle |
 | :-- | :-- |
-| **Intelligence artificielle** | clé OpenRouter (chiffrée), vérification |
+| **Assistant d'installation simplifiée** | état des 4 étapes, téléchargement/mise à jour des modèles hors ligne, diagnostic d'accessibilité |
+| **Intelligence artificielle** | connexion OpenRouter en 1 clic (OAuth PKCE) ou clé `sk-or-v1-…` (chiffrée), vérification |
 | **Voix** | Voxtral, Piper ou voix Android ; clé Mistral pour Voxtral |
 | **Mot-clé « miam-miam »** | écoute permanente, tuile de réglages rapides |
 | **Portions en images** | importer / exporter des paquets, crédits de la banque |
@@ -410,6 +429,7 @@ integration/glookoexport/  pilotage de Glooko : export CSV, Carnet
 | [`docs/CAMAPS-REPAS.md`](docs/CAMAPS-REPAS.md) | saisie dans CamAPS FX |
 | [`docs/GLOOKO.md`](docs/GLOOKO.md), [`docs/GLOOKO-CARNET.md`](docs/GLOOKO-CARNET.md) | import Glooko, Carnet |
 | [`docs/VOIX-MAISON.md`](docs/VOIX-MAISON.md) | voix de la maison (Home Assistant) |
+| [`docs/blueprint-meal-announcer.md`](docs/blueprint-meal-announcer.md) | cahier des charges d'origine |
 
 ### Choix notables
 
@@ -429,17 +449,15 @@ remplace pas un avis médical, et ses valeurs — même vérifiées par deux IA 
 **Vérifiez toujours le total avant de confirmer dans CamAPS FX.**
 
 Ce projet n'est affilié ni à CamDiab (CamAPS FX), ni à Glooko, ni à Open Food Facts, ni à
-Nightscout, ni à Mistral AI, Google, OpenRouter ou Home Assistant. Les noms cités appartiennent
-à leurs propriétaires.
+Nightscout.
 
 ## Licences et crédits
 
-- **Code** : licence **MIT** (voir [`LICENSE`](LICENSE)).
+- **Code** : usage personnel, pas encore de licence publiée.
 - **Banque de portions** : photos et pesées du jeu de données **Nutrition5k** (Google Research),
   licence **CC BY 4.0**.
 - **Open Food Facts** : base sous licence **ODbL**, images CC BY-SA.
 - **Police Dancing Script** : licence **SIL Open Font License** ([`docs/licences/`](docs/licences/)).
 - **Vosk** et **sherpa-onnx** : licence Apache 2.0.
-- **Kroko** (dictée) et **Piper upmc** (voix) : leurs modèles **ne sont pas inclus** dans ce dépôt ;
-  chacun les télécharge depuis leur source et respecte leurs licences (voir
-  [`docs/VOIX-LOCALE.md`](docs/VOIX-LOCALE.md)).
+- **Kroko** (dictée) et **Piper upmc** (voix) : licences de leurs modèles, **à vérifier avant
+  toute diffusion publique** (voir [`docs/VOIX-LOCALE.md`](docs/VOIX-LOCALE.md)).

@@ -77,6 +77,8 @@
 
     <string name="settings_ai_title">Intelligence artificielle</string>
     <string name="settings_ai_intro">Le dialogue du repas, la lecture des photos, la relecture des glucides et la dictée de secours passent par OpenRouter, avec une seule clé. Créez-la sur openrouter.ai (Keys), ajoutez un peu de crédit : un repas coûte environ un dixième de centime. Ce qui part : la phrase du repas et les photos, jamais de glycémie, de dose ni d\'identifiant.</string>
+    <string name="settings_ai_oauth_button">Se connecter à OpenRouter en 1 clic</string>
+    <string name="settings_ai_oauth_hint">Ouvre OpenRouter dans le navigateur et récupère automatiquement votre clé d\'API, sans copier-coller.</string>
     <string name="settings_ai_key_label">Clé OpenRouter</string>
     <string name="settings_ai_key_help">La clé va dans le Keystore d\'Android : jamais affichée, jamais journalisée, jamais incluse dans une sauvegarde.</string>
     <string name="settings_ai_key_stored">Clé enregistrée dans le coffre du téléphone. Laissez vide pour la conserver.</string>

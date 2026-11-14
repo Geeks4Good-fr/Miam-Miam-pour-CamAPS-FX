@@ -1,5 +1,49 @@
 # Journal des modifications
 
+## 0.14.0 — 2026-11-14 — Assistant d'installation intégré (sans ordinateur)
+
+Simplifie l'installation de bout en bout pour un utilisateur non technicien : plus besoin
+d'ordinateur, de câble USB, de commandes `adb push` ni de `chmod` pour installer les modèles
+vocaux et la base Open Food Facts.
+
+### Ajouté
+
+- **Assistant d'installation en 4 étapes (`SetupWizardScreen`)** :
+  - S'ouvre de lui-même au premier lancement (sans toucher aux installations déjà configurées) et
+    reste accessible à tout moment en haut de l'écran **Réglages** (`SetupWizardBannerCard`).
+  - **Étape 1 — Connexion OpenRouter en 1 clic (OAuth PKCE, RFC 7636 S256)** : ouvre la page
+    officielle `https://openrouter.ai/auth` dans le navigateur, récupère le code via le lien
+    profond `miammiam://openrouter-auth`, l'échange contre une clé d'API et la chiffre dans le
+    Keystore Android sans copier-coller. La saisie manuelle d'une clé `sk-or-v1-…` reste
+    disponible.
+  - **Étape 2 — Téléchargement et installation hors ligne sans ordinateur (`OfflinePacksInstaller`)** :
+    télécharge directement depuis les publications GitHub (`Geeks4Good-fr/Miam-Miam-pour-CamAPS-FX`),
+    vérifie l'empreinte SHA-256 et décompresse avec un tampon borné à 64 Ko (pour ne jamais
+    concurrencer CamAPS FX en mémoire vive) les quatre archives :
+    - `kroko-fr.zip` (52 Mo) — dictée vocale hors ligne Kroko ;
+    - `off-base.db.zip` (310 Mo compressés → 653 Mo) — 3,06 millions de produits Open Food Facts ;
+    - `vosk-model-fr.zip` (40 Mo) — écoute hors ligne du mot-clé « Miam-miam » ;
+    - `piper-fr-upmc.zip` (76 Mo, facultatif) — voix française locale Piper upmc.
+    Comme l'application crée elle-même les fichiers dans son espace externe, les permissions Linux
+    sont bonnes d'office (aucun `chmod` requis). Un bouton « Choisir un .zip local » permet aussi
+    d'importer une archive déjà présente sur le téléphone.
+  - **Étape 3 — Microphone et notifications** : demande directe des deux autorisations Android.
+  - **Étape 4 — Saisie automatique CamAPS FX & Glooko et diagnostic d'accessibilité
+    (`AccessibilityDiagnostics`)** :
+    - Guide en 2 boutons numérotés pour débloquer les **« Paramètres restreints »** d'Android 13 et
+      plus sur les APK installés hors Play Store.
+    - Détecte le piège classique d'Android après une mise à jour d'APK ou un arrêt forcé : quand un
+      service d'accessibilité apparaît encore coché dans les réglages Android (`ENABLED_ACCESSIBILITY_SERVICES`)
+      mais n'est plus relié (`isRunning == false`), l'assistant affiche un avertissement explicite
+      pour le décocher puis le recocher.
+
+### Corrigé
+
+- **Activation immédiate de `off-base.db` après téléchargement** : `OffDatabase` ne fige plus
+  `unavailable = true` lorsque le fichier `off-base.db` est absent au tout premier démarrage, et
+  expose `reload()` pour ouvrir la base dès la fin de sa décompression sans redémarrer
+  l'application.
+
 ## 0.12.0 — 2026-11-10 — « Miam-Miam pour CamAPS FX »
 
 Regroupe tout le travail du 29/10 au 10/11/2026 : voix de la maison, mot-clé « miam-miam »,
@@ -117,7 +161,7 @@ images, photos d'emballage et de code-barres, enseignes et factures de courses.
   Nabu ne se déclenchent ensemble (« Okay Nabu, je mange / je bois… » reste dédié à l'enceinte).
 
 - **Total dicté** (`DirectCarbs`) — « Okay Nabu, annonce 25 grammes[, repas][, et note Glooko] »
-  saute la recherche et le calcul ; même suite qu'après un calcul (type, CamAPS que l'utilisateur confirme,
+  saute la recherche et le calcul ; même suite qu'après un calcul (type, CamAPS que Najah confirme,
   Carnet Glooko). Après un obstacle de l'automate (alerte CamAPS), l'enceinte le dit et donne la
   phrase qui reprend la main ; le repas compris est gardé 15 min pour la description du Carnet.
   Phrase « annonce {repas} » ajoutée à l'automatisation `assist_repas` de Home Assistant.
@@ -536,7 +580,7 @@ l'accessibilité, partage, import, écriture dans Nightscout en v1.
 - **331 traitements** écrits, **331 identifiants distincts** — aucun doublon.
 - Second passage : « rien de neuf — 331 document(s) déjà à jour · profil non envoyé (token
   d'API nécessaire) », sans une seule écriture.
-- Aucune glycémie écrite (réglage désactivé) ; le profil `l'utilisateur` du serveur est resté intact.
+- Aucune glycémie écrite (réglage désactivé) ; le profil `Najah` du serveur est resté intact.
 - Un incident réseau passager a laissé le **premier** passage à 326 documents sur 331 ; le
   filet de sécurité a complété les cinq manquants quatre minutes plus tard. Le résumé du
   passage fautif dit vrai (« Impossible de joindre Nightscout »), mais il ne dit pas encore

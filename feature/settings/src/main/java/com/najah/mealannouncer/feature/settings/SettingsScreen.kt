@@ -70,6 +70,9 @@ fun SettingsScreen(
     /** Enseignes habituelles et import de factures/tickets de courses ; `null` dans les aperçus. */
     shopping: ShoppingUiState? = null,
     shoppingActions: ShoppingActions? = null,
+    /** État de l'assistant d'installation simplifiée ; `null` dans les aperçus. */
+    setupWizard: SetupWizardUiState? = null,
+    onOpenSetupWizard: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         // L'état Glooko (dernier import, accessibilité) se relit à chaque venue sur l'écran.
@@ -94,6 +97,13 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
+            if (setupWizard != null) {
+                SetupWizardBannerCard(
+                    state = setupWizard,
+                    onOpenWizard = onOpenSetupWizard,
+                )
+                Spacer(Modifier.height(16.dp))
+            }
             if (aiKey != null && aiKeyActions != null) {
                 // En tête : sans cette clé, ni dialogue, ni photo, ni relecture.
                 AiKeySettingsSection(state = aiKey, actions = aiKeyActions)

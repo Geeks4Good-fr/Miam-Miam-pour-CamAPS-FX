@@ -16,8 +16,8 @@ android {
         // Android 10 : java.time disponible sans désucrage supplémentaire.
         minSdk = 29
         targetSdk = 35
-        versionCode = 13
-        versionName = "0.12.0"
+        versionCode = 14
+        versionName = "0.14.0"
         vectorDrawables { useSupportLibrary = true }
         // Le Hammer et l'Ulefone sont en arm64 : sans ce filtre, sherpa-onnx et Vosk ajoutent
         // ~100 Mo de bibliothèques natives pour des processeurs que l'appli ne verra jamais.
