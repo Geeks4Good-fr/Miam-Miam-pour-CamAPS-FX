@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.najah.mealannouncer.feature.settings
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -22,7 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -113,36 +117,36 @@ fun SettingsScreen(
 
         // Onglets (point 5 de la demande du 14/11/2026) : l'écran était une seule colonne de
         // quatorze sections, on ne retrouvait plus rien. Chaque onglet regroupe un sujet.
-        TabRow(selectedTabIndex = tab) {
+        ScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
             Tab(
                 selected = tab == TAB_GENERAL,
                 onClick = { tab = TAB_GENERAL },
-                text = { Text(stringResource(R.string.settings_tab_general)) },
+                text = { Text(stringResource(R.string.settings_tab_general), maxLines = 1, softWrap = false) },
             )
             Tab(
                 selected = tab == TAB_MEAL,
                 onClick = { tab = TAB_MEAL },
-                text = { Text(stringResource(R.string.settings_tab_meal)) },
+                text = { Text(stringResource(R.string.settings_tab_meal), maxLines = 1, softWrap = false) },
             )
             Tab(
                 selected = tab == TAB_VOICE,
                 onClick = { tab = TAB_VOICE },
-                text = { Text(stringResource(R.string.settings_tab_voice)) },
+                text = { Text(stringResource(R.string.settings_tab_voice), maxLines = 1, softWrap = false) },
             )
             Tab(
                 selected = tab == TAB_DATA,
                 onClick = { tab = TAB_DATA },
-                text = { Text(stringResource(R.string.settings_tab_sources)) },
+                text = { Text(stringResource(R.string.settings_tab_sources), maxLines = 1, softWrap = false) },
             )
             Tab(
                 selected = tab == TAB_SHOPPING,
                 onClick = { tab = TAB_SHOPPING },
-                text = { Text(stringResource(R.string.settings_tab_shopping)) },
+                text = { Text(stringResource(R.string.settings_tab_shopping), maxLines = 1, softWrap = false) },
             )
             Tab(
                 selected = tab == TAB_ADVANCED,
                 onClick = { tab = TAB_ADVANCED },
-                text = { Text(stringResource(R.string.settings_tab_advanced)) },
+                text = { Text(stringResource(R.string.settings_tab_advanced), maxLines = 1, softWrap = false) },
             )
         }
 
@@ -326,7 +330,10 @@ private fun NightscoutTab(
 
     Spacer(Modifier.height(16.dp))
 
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Button(onClick = onSave) { Text(stringResource(R.string.settings_save)) }
         OutlinedButton(onClick = onTest, enabled = state.test !is ConnectionTestState.Testing) {
             Text(

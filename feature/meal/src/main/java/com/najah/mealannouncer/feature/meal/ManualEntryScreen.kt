@@ -1,6 +1,10 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.najah.mealannouncer.feature.meal
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -80,16 +84,17 @@ fun ManualEntryScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Button(onClick = onSearchLocal, enabled = !state.searching) {
                     Text(stringResource(R.string.manual_search_action))
                 }
-                Spacer(Modifier.width(8.dp))
                 OutlinedButton(onClick = onSearchOnline, enabled = !state.searching) {
                     Text(stringResource(R.string.manual_search_online))
                 }
                 if (state.searching) {
-                    Spacer(Modifier.width(12.dp))
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 }
             }

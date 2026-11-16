@@ -1,5 +1,15 @@
 # Journal des modifications
 
+## 0.15.3 — 2026-11-16 — Textes lisibles partout
+
+### Corrigé
+
+- **Mise en page** : les rangées de boutons passent à la ligne quand la place manque, au lieu
+  d'écraser un bouton jusqu'à afficher une lettre par ligne (À propos, sauvegarde, voix, maison,
+  recherche, journal, assistant d'installation…).
+- **Onglets des réglages** : ils défilent horizontalement et chaque libellé tient sur une ligne
+  (« Repas & CamAPS », « Données » n'étaient plus coupés en morceaux).
+
 ## 0.15.2 — 2026-11-16 — Correctif : plantage avec l'écoute du mot-clé
 
 ### Corrigé
