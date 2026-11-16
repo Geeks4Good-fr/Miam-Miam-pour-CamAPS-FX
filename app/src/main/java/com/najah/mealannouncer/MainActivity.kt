@@ -53,6 +53,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.najah.mealannouncer.feature.assistant.MealAssistantScreen
 import com.najah.mealannouncer.feature.assistant.MealAssistantViewModel
@@ -89,6 +90,7 @@ import com.najah.mealannouncer.feature.settings.PortionsActions
 import com.najah.mealannouncer.feature.settings.PortionsSettingsViewModel
 import com.najah.mealannouncer.feature.settings.SetupWizardScreen
 import com.najah.mealannouncer.feature.settings.SetupWizardViewModel
+import com.najah.mealannouncer.feature.settings.AccessibilityAlertBanner
 import com.najah.mealannouncer.feature.settings.ShoppingActions
 import com.najah.mealannouncer.feature.settings.ShoppingSettingsViewModel
 import com.najah.mealannouncer.home.HomeLinkService
@@ -801,6 +803,21 @@ private fun AppRoot(
                     onAnnounceMeal = { route = ROUTE_MANUAL },
                     onHistory = { route = ROUTE_JOURNAL },
                     onSettings = { route = ROUTE_SETTINGS },
+                    topContent = {
+                        val wizard by setupWizardViewModel.state.collectAsStateWithLifecycle()
+                        // Relu à chaque retour sur l'accueil : l'utilisateur revient des réglages
+                        // d'Android, le bandeau doit disparaître de lui-même.
+                        LifecycleResumeEffect(Unit) {
+                            setupWizardViewModel.refresh()
+                            onPauseOrDispose { }
+                        }
+                        AccessibilityAlertBanner(
+                            state = wizard,
+                            onOpenAppDetails = setupWizardViewModel::openAppDetailsSettings,
+                            onOpenAccessibility = setupWizardViewModel::openAccessibilitySettings,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+                    },
                 )
             }
             }

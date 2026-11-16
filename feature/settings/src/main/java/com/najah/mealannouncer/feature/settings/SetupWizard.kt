@@ -44,6 +44,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewModelScope
 import com.najah.mealannouncer.core.datastore.AiSecretStore
+import com.najah.mealannouncer.core.datastore.MealRecordSettings
+import com.najah.mealannouncer.integration.glooko.GlookoPreferences
 import com.najah.mealannouncer.integration.camaps.CamapsAccessibilityService
 import com.najah.mealannouncer.integration.glookoexport.GlookoAccessibilityService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -121,7 +123,22 @@ data class SetupWizardUiState(
     val camapsBinding: AccessibilityBindingState = AccessibilityBindingState.OFF,
     val glookoBinding: AccessibilityBindingState = AccessibilityBindingState.OFF,
     val requiresRestrictedSettingsGuide: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+    /** L'utilisateur a activé l'insertion automatique dans CamAPS FX. */
+    val camapsWanted: Boolean = false,
+    /** L'utilisateur a activé un usage de Glooko qui passe par le service d'export. */
+    val glookoWanted: Boolean = false,
 ) {
+    /** Insertion CamAPS voulue mais impossible : le service n'est pas en marche. */
+    val camapsBroken: Boolean
+        get() = camapsWanted && camapsBinding != AccessibilityBindingState.BOUND_AND_RUNNING
+
+    /** Export Glooko voulu mais impossible : le service n'est pas en marche. */
+    val glookoBroken: Boolean
+        get() = glookoWanted && glookoBinding != AccessibilityBindingState.BOUND_AND_RUNNING
+
+    /** L'accueil doit-il prévenir ? (cas typique : juste après une mise à jour). */
+    val showAccessibilityAlert: Boolean get() = camapsBroken || glookoBroken
+
     val allRequiredPacksInstalled: Boolean
         get() = OfflinePack.entries.filter { it.required }.all { installedPacks[it] == true }
 
@@ -144,6 +161,8 @@ data class SetupWizardUiState(
 class SetupWizardViewModel @Inject constructor(
     private val installer: OfflinePacksInstaller,
     private val aiSecrets: AiSecretStore,
+    private val mealRecord: MealRecordSettings,
+    private val glookoPreferences: GlookoPreferences,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -213,6 +232,9 @@ class SetupWizardViewModel @Inject constructor(
             camapsBinding = camapsState,
             glookoBinding = glookoState,
             requiresRestrictedSettingsGuide = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+            camapsWanted = mealRecord.config.value.camapsAutoInsert,
+            glookoWanted = mealRecord.config.value.writesGlookoCarnet() ||
+                runCatching { glookoPreferences.enabled }.getOrDefault(false),
         )
     }
 

@@ -1,5 +1,16 @@
 # Journal des modifications
 
+## 0.15.4 — 2026-11-16 — Alerte quand l'insertion CamAPS est coupée
+
+### Ajouté
+
+- **Bandeau rouge sur l'accueil** quand l'insertion dans CamAPS FX (ou l'écriture dans Glooko)
+  est activée dans Miam-Miam mais que son service d'accessibilité ne tourne pas. C'est le cas
+  juste après une mise à jour sur Android 13 et plus : Android coupe ces services et verrouille
+  leur réactivation (« paramètres restreints »). Le bandeau dit ce qui ne marche plus et donne
+  les deux gestes, chacun avec son bouton (fiche de l'appli, puis Accessibilité). Il disparaît
+  de lui-même au retour sur l'accueil une fois les services rallumés.
+
 ## 0.15.3 — 2026-11-16 — Textes lisibles partout
 
 ### Corrigé

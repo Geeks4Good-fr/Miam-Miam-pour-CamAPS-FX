@@ -54,6 +54,8 @@ fun HomeScreen(
     onAnnounceMeal: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
+    /** Contenu affiché tout en haut (alertes), fourni par l'application. */
+    topContent: @Composable () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -62,6 +64,7 @@ fun HomeScreen(
             .padding(horizontal = 24.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        topContent()
         Text(
             text = stringResource(R.string.home_title),
             style = MaterialTheme.typography.headlineLarge.copy(
