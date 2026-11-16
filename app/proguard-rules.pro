@@ -15,6 +15,17 @@
 # sherpa-onnx : le code natif lit les champs des configurations Kotlin par leur nom (JNI).
 -keep class com.k2fsa.sherpa.onnx.** { *; }
 
+# Vosk (mot-clé « Miam-miam ») passe par JNA : le code natif de JNA retrouve ses classes et
+# leurs champs PAR LEUR NOM (Pointer.peer, Structure, Callback…). Sans ces règles, R8 les
+# renomme et la version publiée plante dès que l'écoute du mot-clé démarre
+# (« Can't obtain peer field ID for class com.sun.jna.Pointer », corrigé en 0.15.2).
+-keep class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.** { public *; }
+-keep class org.vosk.** { *; }
+-dontwarn java.awt.**
+-dontwarn com.sun.jna.**
+
 # Ligne utile dans les rapports de plantage, sans révéler de données de santé.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile

@@ -1,5 +1,14 @@
 # Journal des modifications
 
+## 0.15.2 — 2026-11-16 — Correctif : plantage avec l'écoute du mot-clé
+
+### Corrigé
+
+- **Plantage en boucle de la version publiée quand l'écoute du mot-clé « Miam-miam » est
+  activée** (cela touchait aussi l'ouverture de l'application). L'optimiseur R8 renommait les
+  classes de JNA, dont Vosk a besoin ; elles sont désormais conservées. La version de test,
+  non optimisée, n'était pas touchée.
+
 ## 0.15.1 — 2026-11-16 — Journaux envoyés au support de Geeks4Good
 
 ### Modifié
