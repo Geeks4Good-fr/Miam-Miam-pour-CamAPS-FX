@@ -31,6 +31,8 @@ dependencies {
     api(project(":core:model"))
     implementation(project(":core:common"))
     implementation(project(":core:datastore"))
+    // Journal d'automatisation et repas favoris (annonce rapide).
+    implementation(project(":core:database"))
     implementation(project(":data:openfoodfacts"))
     implementation(project(":data:mistral"))
     // L'annonce à voix haute du total réutilise la voix déjà réglée (Voxtral ou Android).

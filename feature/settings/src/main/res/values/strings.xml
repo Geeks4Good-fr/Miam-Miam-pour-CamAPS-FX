@@ -184,4 +184,50 @@
     <string name="settings_shopping_import_drive">Depuis Google Drive</string>
     <string name="settings_shopping_pantry_count">Garde-manger personnel : %1$d produit(s) mémorisé(s) (%2$s…).</string>
     <string name="settings_shopping_clear_pantry">Vider le garde-manger personnel</string>
+
+    <!-- Onglets des réglages (14/11/2026) -->
+    <string name="settings_tab_general">Général</string>
+    <string name="settings_tab_meal">Repas &amp; CamAPS</string>
+    <string name="settings_tab_voice">Voix</string>
+    <string name="settings_tab_sources">Données</string>
+    <string name="settings_tab_shopping">Courses</string>
+    <string name="settings_tab_advanced">Avancé</string>
+
+    <!-- Page À propos -->
+    <string name="about_title">À propos</string>
+    <string name="about_app_name">Miam-Miam 🍓</string>
+    <string name="about_back">Retour</string>
+    <string name="about_version">Version %1$s (numéro de compilation %2$d)</string>
+    <string name="about_what">Miam-Miam annonce à voix haute les glucides de vos repas et les dépose dans CamAPS FX. Elle ne calcule aucune insuline et ne valide jamais un bolus à votre place.</string>
+    <string name="about_copyright_title">Copyright</string>
+    <string name="about_copyright">© 2026 Geeks4Good — Miam-Miam pour CamAPS FX.\nLogiciel publié sous licence MIT : utilisation, modification et redistribution libres, sans garantie. CamAPS FX est un produit de CamDiab Ltd ; Glooko un produit de Glooko Inc. ; Miam-Miam n\'est édité par aucun des deux.</string>
+    <string name="about_licences_title">Licences des composants</string>
+    <string name="about_licences">Cette application embarque des travaux d\'autrui, sous leurs licences propres :\n\n• Open Food Facts — base de produits et fiches (licence ODbL 1.0, © Open Food Facts contributors). La base embarquée est une œuvre dérivée au sens de l\'ODbL.\n• Nutrition5k (Google Research) — photographies d\'assiettes pesées (CC BY 4.0).\n• AndroidX, Jetpack Compose, Hilt, Room (Apache License 2.0, © Google LLC).\n• Vosk et Kroko — reconnaissance vocale hors ligne (Apache License 2.0 ; modèles avec leurs licences d\'entraînement).\n• Piper (MIT) et le modèle de voix upmc (CC BY 4.0).\n• Police Dancing Script (SIL Open Font License 1.1, © Pablo Impallari / Impallari Type).\n• sherpa-onnx (Apache License 2.0, © k2-fsa).\n\nLes textes complets accompagnent les éventuelles archives de publication.</string>
+    <string name="about_debug_title">Mode debug</string>
+    <string name="about_debug_explain">Coché, les journaux de l\'application sont envoyés au développeur après une annonce ou un incident.\n\nCes journaux peuvent contenir des informations personnelles : repas, produits choisis, adresses des services que vous avez configurés, messages d\'erreur. Rien d\'autre n\'est transmis, et rien ne part si la case est décochée. Le serveur de glycémie n\'est jamais joint : seuls les journaux textuels sortent.</string>
+    <string name="about_debug_send_now">Envoyer les journaux maintenant</string>
+    <string name="about_debug_share">Partager les journaux (courriel, messagerie)</string>
+    <string name="about_debug_token_label">Jeton GitHub (envoi automatique)</string>
+    <string name="about_debug_token_help">Facultatif. Avec un jeton GitHub à portée limitée « gist », les journaux partent tout seuls. Sans jeton, le bouton de partage reste disponible.</string>
+    <string name="about_debug_sending">Envoi des journaux…</string>
+    <string name="about_debug_sent">Journaux envoyés : %1$s</string>
+    <string name="about_debug_failed">Envoi impossible : %1$s</string>
+    <string name="about_updates_title">Mises à jour</string>
+    <string name="about_updates_auto">Vérifier au démarrage</string>
+    <string name="about_updates_check">Vérifier maintenant</string>
+    <string name="about_updates_checking">Recherche de mise à jour…</string>
+    <string name="about_updates_none">Vous êtes à jour.</string>
+    <string name="about_updates_available">Version %1$s disponible (vous avez %2$s).</string>
+    <string name="about_updates_download">Télécharger et installer</string>
+    <string name="about_updates_downloading">Téléchargement… %1$d %%</string>
+    <string name="about_updates_installing">Installation : validez l\'écran d\'Android.</string>
+    <string name="about_updates_failed">Mise à jour impossible : %1$s</string>
+    <string name="about_updates_need_install_permission">Autorisez « Installer des applications inconnues » pour Miam-Miam, puis réessayez.</string>
+    <string name="about_release_notes">Nouveautés</string>
+
+    <!-- Sauvegarde de la configuration -->
+    <string name="settings_backup_title">Sauvegarde de la configuration</string>
+    <string name="settings_backup_help">Un fichier qui contient vos réglages et vos clés (OpenRouter, Nightscout, maison, Glooko). Il sert à changer de téléphone, à réinstaller, ou à passer de la version de test à la version publiée sans tout ressaisir. Gardez-le : il contient vos clés en clair.</string>
+    <string name="settings_backup_export">Sauvegarder</string>
+    <string name="settings_backup_import">Restaurer</string>
 </resources>

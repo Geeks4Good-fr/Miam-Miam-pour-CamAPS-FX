@@ -22,6 +22,10 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
+    <!-- Mise à jour depuis les publications du projet : l'APK téléchargé est confié au
+         programme d'installation d'Android (point 6 de la demande du 14/11/2026). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Visibilité des applications tierces que l'on ouvre (CamAPS FX, Glooko). -->
     <queries>
         <package android:name="com.camdiab.fx_alert.mgdl" />

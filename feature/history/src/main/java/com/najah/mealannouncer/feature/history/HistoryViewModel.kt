@@ -2,12 +2,17 @@ package com.najah.mealannouncer.feature.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.najah.mealannouncer.core.database.repository.FavoriteMealRepository
 import com.najah.mealannouncer.core.database.repository.MealRepository
+import com.najah.mealannouncer.core.model.FavoriteMealLine
 import com.najah.mealannouncer.core.model.MealConfirmation
+import com.najah.mealannouncer.core.model.MealUnit
 import com.najah.mealannouncer.core.model.NightscoutStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -34,6 +39,7 @@ data class HistoryEntry(
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val repository: MealRepository,
+    private val favorites: FavoriteMealRepository,
 ) : ViewModel() {
 
     val entries: StateFlow<List<HistoryEntry>> = combine(
@@ -54,6 +60,40 @@ class HistoryViewModel @Inject constructor(
 
     fun delete(id: String) {
         viewModelScope.launch { repository.delete(id) }
+    }
+
+    /** Message passager (favori ajouté), affiché en tête du journal. */
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+
+    fun dismissNotice() {
+        _notice.value = null
+    }
+
+    /**
+     * Enregistre un repas de l'historique comme favori, pour le réannoncer en un geste.
+     *
+     * L'historique ne recharge pas les lignes : le favori porte donc une ligne étalon de 100 g
+     * valant le total, exactement comme depuis le journal des automatisations.
+     */
+    fun saveAsFavourite(entry: HistoryEntry) {
+        val meal = entry.meal
+        if (meal.totalCarbs.grams <= 0.0) return
+        val label = meal.noteOrSummary().ifBlank { "Repas" }.take(80)
+        viewModelScope.launch {
+            favorites.create(
+                label,
+                listOf(
+                    FavoriteMealLine(
+                        name = label,
+                        quantity = meal.totalCarbs.rounded(0),
+                        unit = MealUnit.GRAM,
+                        carbsPer100g = 100.0,
+                    ),
+                ),
+            )
+            _notice.value = "« $label » ajouté aux favoris (annonce rapide)."
+        }
     }
 
     private companion object {

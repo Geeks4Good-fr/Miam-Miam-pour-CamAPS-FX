@@ -30,6 +30,20 @@ data class PackageReading(
     val piecesPerPack: Double?,
     val netGrams: Double?,
     val carbsPer100g: Double?,
+    /**
+     * Les glucides d'**une portion**, quand le tableau en donne une (« par portion : 12 g pour
+     * 1 portion de 30 g »).
+     *
+     * C'est la lecture demandée le 14/11/2026 (point 7) : beaucoup d'emballages affichent une
+     * colonne « par portion » à côté de « pour 100 g ». La lire évite un calcul que l'emballage
+     * a déjà fait — et évite surtout de confondre les deux colonnes, qui n'ont pas la même
+     * valeur.
+     */
+    val carbsPerPortion: Double? = null,
+    /** Le poids de cette portion (« 1 portion = 30 g »), quand il est imprimé. */
+    val portionGrams: Double? = null,
+    /** Le libellé de la portion lu tel quel (« 1 barre (25 g) », « 1/2 paquet »). */
+    val portionLabel: String? = null,
     /** Ce que la photo montre de la quantité mangée (« la moitié »), ou `null`. */
     val eaten: String?,
     val readOnPackage: Boolean,
@@ -45,8 +59,9 @@ data class PackageReading(
             net / count
         }
 
-    /** Vrai si la photo permet de chiffrer une pièce. */
-    val knowsUnit: Boolean get() = carbsPerUnit != null || pieceGrams != null
+    /** Vrai si la photo permet de chiffrer une pièce ou une portion. */
+    val knowsUnit: Boolean
+        get() = carbsPerUnit != null || pieceGrams != null || (carbsPerPortion != null)
 }
 
 /**
@@ -85,7 +100,16 @@ object PackagePhotoInterpretation {
         - Chaque nombre ci-dessous doit figurer dans « texte_lu ». Sinon : null. Ne complète
           jamais avec ta mémoire ou une valeur habituelle.
         - « glucides_100g » : la ligne « Glucides » pour 100 g (ou 100 ml) — jamais la ligne
-          « dont sucres ».
+          « dont sucres ». Sur un tableau à DEUX colonnes (« pour 100 g » et « par portion »),
+          cette valeur est celle de la colonne « pour 100 g », jamais celle de la portion.
+        - « glucides_portion_g » : seulement si le tableau donne les glucides PAR PORTION
+          (colonne « par portion », « valant pour une portion de X g », « Per serving »). Recopie
+          la valeur de cette colonne-là. Ne divise pas, ne convertis pas : lis.
+        - « portion_g » : le poids de cette portion, s'il est imprimé (« 1 portion = 30 g »,
+          « 1 barre (25 g) », « 2 biscuits (25 g) »). Si le tableau donne une portion sans en
+          donner le poids, laisse null.
+        - « portion_libelle » : le libellé de la portion tel qu'il est imprimé (« 1 barre
+          (25 g) », « 1/2 paquet »), sinon null.
         - « poids_piece_g » : le poids d'une pièce imprimé (« 1 pâté = 45 g », « portion :
           1 barre de 21,5 g »).
         - « pieces_par_paquet » et « poids_net_g » : le nombre de pièces et le poids net du
@@ -97,7 +121,7 @@ object PackagePhotoInterpretation {
 
         Tu réponds UNIQUEMENT par un objet JSON de cette forme :
         (exemple d'une AUTRE photo, ne recopie pas ses valeurs)
-        {"description":"Je vois le dos d'un sachet de madeleines ; le tableau est lisible : 55 grammes de glucides pour 100 grammes, 12 madeleines de 25 grammes.","aliment_visible":"madeleines","produit":"Madeleines Exemple","code_barres":"3560070711994","texte_lu":"Glucides 55 g ... 12 madeleines ... 300 g ... 1 madeleine (25 g) ... 3560070711994","glucides_100g":55,"poids_piece_g":25,"pieces_par_paquet":12,"poids_net_g":300,"glucides_piece_g":null,"lu_sur_emballage":true,"mange":null}
+        {"description":"Je vois le dos d'un sachet de madeleines ; le tableau est lisible : 55 grammes de glucides pour 100 grammes, 12 madeleines de 25 grammes.","aliment_visible":"madeleines","produit":"Madeleines Exemple","code_barres":"3560070711994","texte_lu":"Glucides 55 g ... 12 madeleines ... 300 g ... 1 madeleine (25 g) ... 3560070711994","glucides_100g":55,"glucides_portion_g":null,"portion_g":null,"portion_libelle":null,"poids_piece_g":25,"pieces_par_paquet":12,"poids_net_g":300,"glucides_piece_g":null,"lu_sur_emballage":true,"mange":null}
     """.trimIndent()
 
     /** La question posée avec la photo : rien sur le repas, pour ne pas souffler de réponse. */
@@ -141,6 +165,11 @@ object PackagePhotoInterpretation {
             piecesPerPack = pieces,
             netGrams = number("poids_net_g", MAX_NET_GRAMS),
             carbsPer100g = number("glucides_100g", 100.0),
+            // La colonne « par portion » : une portion plus lourde que les glucides qu'elle
+            // annonce serait une lecture fausse, on jette la valeur.
+            carbsPerPortion = number("glucides_portion_g", MAX_PIECE_GRAMS),
+            portionGrams = number("portion_g", MAX_PIECE_GRAMS),
+            portionLabel = text("portion_libelle", 120),
             eaten = text("mange"),
             readOnPackage = readOnPackage && printed != null,
         )

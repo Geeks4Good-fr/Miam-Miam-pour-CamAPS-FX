@@ -21,10 +21,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -33,6 +39,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.najah.mealannouncer.core.datastore.CredentialType
 import com.najah.mealannouncer.data.nightscout.userMessage
+
+/** Index des onglets de l'écran de réglages. */
+private const val TAB_GENERAL = 0
+private const val TAB_MEAL = 1
+private const val TAB_VOICE = 2
+private const val TAB_DATA = 3
+private const val TAB_SHOPPING = 4
+private const val TAB_ADVANCED = 5
 
 /**
  * Réglages de l'envoi vers Nightscout.
@@ -73,7 +87,13 @@ fun SettingsScreen(
     /** État de l'assistant d'installation simplifiée ; `null` dans les aperçus. */
     setupWizard: SetupWizardUiState? = null,
     onOpenSetupWizard: () -> Unit = {},
+    /** Sauvegarde de la configuration (15/11/2026) : passer d'un téléphone à l'autre sans ressaisir les clés. */
+    backup: BackupUiState? = null,
+    onBackupExport: () -> Unit = {},
+    onBackupImport: () -> Unit = {},
+    onDismissBackup: () -> Unit = {},
 ) {
+    var tab by rememberSaveable { mutableIntStateOf(TAB_GENERAL) }
     Column(modifier = modifier.fillMaxSize()) {
         // L'état Glooko (dernier import, accessibilité) se relit à chaque venue sur l'écran.
         LaunchedEffect(Unit) { onRefreshGlooko() }
@@ -91,148 +111,240 @@ fun SettingsScreen(
             )
         }
 
+        // Onglets (point 5 de la demande du 14/11/2026) : l'écran était une seule colonne de
+        // quatorze sections, on ne retrouvait plus rien. Chaque onglet regroupe un sujet.
+        TabRow(selectedTabIndex = tab) {
+            Tab(
+                selected = tab == TAB_GENERAL,
+                onClick = { tab = TAB_GENERAL },
+                text = { Text(stringResource(R.string.settings_tab_general)) },
+            )
+            Tab(
+                selected = tab == TAB_MEAL,
+                onClick = { tab = TAB_MEAL },
+                text = { Text(stringResource(R.string.settings_tab_meal)) },
+            )
+            Tab(
+                selected = tab == TAB_VOICE,
+                onClick = { tab = TAB_VOICE },
+                text = { Text(stringResource(R.string.settings_tab_voice)) },
+            )
+            Tab(
+                selected = tab == TAB_DATA,
+                onClick = { tab = TAB_DATA },
+                text = { Text(stringResource(R.string.settings_tab_sources)) },
+            )
+            Tab(
+                selected = tab == TAB_SHOPPING,
+                onClick = { tab = TAB_SHOPPING },
+                text = { Text(stringResource(R.string.settings_tab_shopping)) },
+            )
+            Tab(
+                selected = tab == TAB_ADVANCED,
+                onClick = { tab = TAB_ADVANCED },
+                text = { Text(stringResource(R.string.settings_tab_advanced)) },
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            if (setupWizard != null) {
-                SetupWizardBannerCard(
-                    state = setupWizard,
-                    onOpenWizard = onOpenSetupWizard,
-                )
-                Spacer(Modifier.height(16.dp))
-            }
-            if (aiKey != null && aiKeyActions != null) {
-                // En tête : sans cette clé, ni dialogue, ni photo, ni relecture.
-                AiKeySettingsSection(state = aiKey, actions = aiKeyActions)
-                Spacer(Modifier.height(16.dp))
-            }
-            if (portions != null && portionsActions != null) {
-                PortionsSettingsSection(state = portions, actions = portionsActions)
-                Spacer(Modifier.height(16.dp))
-            }
-            if (shopping != null && shoppingActions != null) {
-                ShoppingSettingsSection(state = shopping, actions = shoppingActions)
-                Spacer(Modifier.height(16.dp))
-            }
-            Section(title = stringResource(R.string.settings_nightscout_title)) {
-                Text(
-                    text = stringResource(R.string.settings_nightscout_intro),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = state.baseUrl,
-                    onValueChange = onUrlChange,
-                    label = { Text(stringResource(R.string.settings_url_label)) },
-                    placeholder = { Text(stringResource(R.string.settings_url_placeholder)) },
-                    supportingText = { Text(stringResource(R.string.settings_url_help)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = state.secretInput,
-                    onValueChange = onSecretChange,
-                    label = { Text(stringResource(R.string.settings_secret_label)) },
-                    placeholder = { Text(stringResource(R.string.settings_secret_placeholder)) },
-                    supportingText = {
-                        Text(
-                            if (state.secretStored) {
-                                stringResource(R.string.settings_secret_stored)
-                            } else {
-                                stringResource(R.string.settings_secret_help)
-                            },
+            when (tab) {
+                TAB_GENERAL -> {
+                    if (setupWizard != null) {
+                        SetupWizardBannerCard(
+                            state = setupWizard,
+                            onOpenWizard = onOpenSetupWizard,
                         )
-                    },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(12.dp))
-
-                Text(
-                    text = stringResource(R.string.settings_credential_type),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                CredentialOption(
-                    label = stringResource(R.string.settings_credential_api_secret),
-                    selected = state.credentialType == CredentialType.API_SECRET,
-                    onSelect = { onCredentialTypeChange(CredentialType.API_SECRET) },
-                )
-                CredentialOption(
-                    label = stringResource(R.string.settings_credential_token),
-                    selected = state.credentialType == CredentialType.ACCESS_TOKEN,
-                    onSelect = { onCredentialTypeChange(CredentialType.ACCESS_TOKEN) },
-                )
-                Text(
-                    text = stringResource(R.string.settings_credential_help),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Section(title = stringResource(R.string.settings_enable)) {
-                SwitchRow(
-                    label = stringResource(R.string.settings_enable),
-                    checked = state.enabled,
-                    onCheckedChange = onEnabledChange,
-                )
-                SwitchRow(
-                    label = stringResource(R.string.settings_simulation),
-                    checked = state.simulation,
-                    onCheckedChange = onSimulationChange,
-                )
-                Text(
-                    text = stringResource(R.string.settings_simulation_help),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onSave) { Text(stringResource(R.string.settings_save)) }
-                OutlinedButton(onClick = onTest, enabled = state.test !is ConnectionTestState.Testing) {
-                    Text(
-                        if (state.test is ConnectionTestState.Testing) {
-                            stringResource(R.string.settings_testing)
-                        } else {
-                            stringResource(R.string.settings_test)
-                        },
-                    )
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (aiKey != null && aiKeyActions != null) {
+                        // Sur cet onglet : sans cette clé, ni dialogue, ni photo, ni relecture.
+                        AiKeySettingsSection(state = aiKey, actions = aiKeyActions)
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (backup != null) {
+                        BackupSection(
+                            state = backup,
+                            onExport = onBackupExport,
+                            onImport = onBackupImport,
+                            onDismiss = onDismissBackup,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
                 }
-            }
 
-            Spacer(Modifier.height(12.dp))
-            Feedback(state = state)
+                TAB_MEAL -> {
+                    MealRecordSettingsSection(state = state.mealRecord, actions = mealRecordActions)
+                    Spacer(Modifier.height(16.dp))
+                    GlookoSettingsSection(state = state.glooko, actions = glookoActions)
+                    Spacer(Modifier.height(16.dp))
+                }
 
-            if (state.secretStored) {
-                Spacer(Modifier.height(12.dp))
-                TextButton(onClick = onForgetSecret) { Text(stringResource(R.string.settings_forget)) }
+                TAB_VOICE -> {
+                    VoiceSettingsSection(state = state.voice, actions = voiceActions)
+                    Spacer(Modifier.height(16.dp))
+                    WakeWordSettingsSection(state = wakeWord, actions = wakeWordActions)
+                    Spacer(Modifier.height(16.dp))
+                    HomeVoiceSettingsSection(state = homeVoice, actions = homeVoiceActions)
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                TAB_DATA -> {
+                    if (portions != null && portionsActions != null) {
+                        PortionsSettingsSection(state = portions, actions = portionsActions)
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+
+                TAB_SHOPPING -> {
+                    if (shopping != null && shoppingActions != null) {
+                        ShoppingSettingsSection(state = shopping, actions = shoppingActions)
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+
+                else -> NightscoutTab(
+                    state = state,
+                    onUrlChange = onUrlChange,
+                    onSecretChange = onSecretChange,
+                    onCredentialTypeChange = onCredentialTypeChange,
+                    onEnabledChange = onEnabledChange,
+                    onSimulationChange = onSimulationChange,
+                    onSave = onSave,
+                    onTest = onTest,
+                    onForgetSecret = onForgetSecret,
+                )
             }
-            Spacer(Modifier.height(16.dp))
-            GlookoSettingsSection(state = state.glooko, actions = glookoActions)
-            Spacer(Modifier.height(16.dp))
-            MealRecordSettingsSection(state = state.mealRecord, actions = mealRecordActions)
-            Spacer(Modifier.height(16.dp))
-            VoiceSettingsSection(state = state.voice, actions = voiceActions)
-            Spacer(Modifier.height(16.dp))
-            WakeWordSettingsSection(state = wakeWord, actions = wakeWordActions)
-            Spacer(Modifier.height(16.dp))
-            HomeVoiceSettingsSection(state = homeVoice, actions = homeVoiceActions)
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+/**
+ * L'onglet « Avancé » : l'envoi vers Nightscout, avec son adresse, son secret et sa simulation.
+ *
+ * C'est la partie la plus technique de l'application : elle reste donc isolée sur le dernier
+ * onglet et n'encombre plus le réglage quotidien.
+ */
+@Composable
+private fun NightscoutTab(
+    state: SettingsUiState,
+    onUrlChange: (String) -> Unit,
+    onSecretChange: (String) -> Unit,
+    onCredentialTypeChange: (CredentialType) -> Unit,
+    onEnabledChange: (Boolean) -> Unit,
+    onSimulationChange: (Boolean) -> Unit,
+    onSave: () -> Unit,
+    onTest: () -> Unit,
+    onForgetSecret: () -> Unit,
+) {
+    Section(title = stringResource(R.string.settings_nightscout_title)) {
+        Text(
+            text = stringResource(R.string.settings_nightscout_intro),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = state.baseUrl,
+            onValueChange = onUrlChange,
+            label = { Text(stringResource(R.string.settings_url_label)) },
+            placeholder = { Text(stringResource(R.string.settings_url_placeholder)) },
+            supportingText = { Text(stringResource(R.string.settings_url_help)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = state.secretInput,
+            onValueChange = onSecretChange,
+            label = { Text(stringResource(R.string.settings_secret_label)) },
+            placeholder = { Text(stringResource(R.string.settings_secret_placeholder)) },
+            supportingText = {
+                Text(
+                    if (state.secretStored) {
+                        stringResource(R.string.settings_secret_stored)
+                    } else {
+                        stringResource(R.string.settings_secret_help)
+                    },
+                )
+            },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            text = stringResource(R.string.settings_credential_type),
+            style = MaterialTheme.typography.labelLarge,
+        )
+        CredentialOption(
+            label = stringResource(R.string.settings_credential_api_secret),
+            selected = state.credentialType == CredentialType.API_SECRET,
+            onSelect = { onCredentialTypeChange(CredentialType.API_SECRET) },
+        )
+        CredentialOption(
+            label = stringResource(R.string.settings_credential_token),
+            selected = state.credentialType == CredentialType.ACCESS_TOKEN,
+            onSelect = { onCredentialTypeChange(CredentialType.ACCESS_TOKEN) },
+        )
+        Text(
+            text = stringResource(R.string.settings_credential_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    Spacer(Modifier.height(12.dp))
+
+    Section(title = stringResource(R.string.settings_enable)) {
+        SwitchRow(
+            label = stringResource(R.string.settings_enable),
+            checked = state.enabled,
+            onCheckedChange = onEnabledChange,
+        )
+        SwitchRow(
+            label = stringResource(R.string.settings_simulation),
+            checked = state.simulation,
+            onCheckedChange = onSimulationChange,
+        )
+        Text(
+            text = stringResource(R.string.settings_simulation_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    Spacer(Modifier.height(16.dp))
+
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Button(onClick = onSave) { Text(stringResource(R.string.settings_save)) }
+        OutlinedButton(onClick = onTest, enabled = state.test !is ConnectionTestState.Testing) {
+            Text(
+                if (state.test is ConnectionTestState.Testing) {
+                    stringResource(R.string.settings_testing)
+                } else {
+                    stringResource(R.string.settings_test)
+                },
+            )
+        }
+    }
+
+    Spacer(Modifier.height(12.dp))
+    Feedback(state = state)
+
+    if (state.secretStored) {
+        Spacer(Modifier.height(12.dp))
+        TextButton(onClick = onForgetSecret) { Text(stringResource(R.string.settings_forget)) }
     }
 }
 

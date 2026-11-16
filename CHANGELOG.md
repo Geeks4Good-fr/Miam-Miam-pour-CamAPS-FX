@@ -1,5 +1,33 @@
 # Journal des modifications
 
+## 0.15.0 — 2026-11-16 — Menu, recherche manuelle, journal, favoris, sauvegarde et mises à jour
+
+### Ajouté
+
+- **Menu latéral (☰)** à six entrées : Accueil, Annonce du repas, Recherche manuelle, Journal,
+  Paramètres, À propos.
+- **Recherche manuelle Open Food Facts** : d'abord en local (garde-manger, cache, base hors ligne
+  `off-base.db`), puis en ligne ; panier de plusieurs produits ; calculateur par type (pièce, poids,
+  portion, volume, paquet) avec la formule affichée ; bouton « Lancer l'automatisation (CamAPS FX) ».
+- **Journal à deux onglets** : *Automatisations* et *Repas*. Distingue un repas mené « jusqu'au
+  bout » (CamAPS FX puis Carnet Glooko) d'un repas arrêté à CamAPS FX. Nouvelle table
+  `automation_log` (migration Room 1 → 2, additive : rien n'est perdu).
+- **Repas favoris** (table `favorite_meals`), rappelables en un geste.
+- **Paramètres en six onglets** : Général, Repas & CamAPS, Voix, Données, Courses, Avancé.
+- **Sauvegarde / restauration de la configuration** (onglet Général) : un fichier JSON avec tous
+  les réglages et les clés, pour changer de téléphone ou réinstaller sans tout ressaisir. ⚠️ Le
+  fichier contient les clés en clair : à garder en lieu sûr.
+- **Page À propos** : version, licences, mode debug, envoi des journaux sans clé (dpaste.com, repli
+  paste.rs ; le lien est copié), et **mise à jour intégrée** : vérification de la dernière
+  publication GitHub, téléchargement et installation par-dessus la version existante.
+
+### Modifié
+
+- **Analyse des photos d'emballage** : la colonne « par portion » d'un tableau nutritionnel est
+  exploitée directement, sans recalcul ; consignes du modèle durcies.
+- La version de test s'appelle « Miam-Miam (test) » pour ne plus la confondre avec la version
+  publiée.
+
 ## 0.14.0 — 2026-11-14 — Assistant d'installation intégré (sans ordinateur)
 
 Simplifie l'installation de bout en bout pour un utilisateur non technicien : plus besoin

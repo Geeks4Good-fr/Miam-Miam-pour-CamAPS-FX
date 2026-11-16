@@ -17,12 +17,26 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,12 +62,19 @@ import com.najah.mealannouncer.feature.confirmation.ConfirmationScreen
 import com.najah.mealannouncer.feature.confirmation.ConfirmationViewModel
 import com.najah.mealannouncer.feature.history.HistoryScreen
 import com.najah.mealannouncer.feature.history.HistoryViewModel
+import com.najah.mealannouncer.feature.history.JournalScreen
+import com.najah.mealannouncer.feature.history.JournalViewModel
 import com.najah.mealannouncer.feature.meal.HomeScreen
 import com.najah.mealannouncer.feature.meal.ManualEntryScreen
 import com.najah.mealannouncer.feature.meal.ManualEntryViewModel
+import com.najah.mealannouncer.feature.meal.search.ManualSearchScreen
+import com.najah.mealannouncer.feature.meal.search.ManualSearchViewModel
 import com.najah.mealannouncer.core.datastore.HomeVoiceConfigStore
 import com.najah.mealannouncer.core.datastore.WakeWordConfigStore
 import com.najah.mealannouncer.feature.settings.GlookoActions
+import com.najah.mealannouncer.feature.settings.AboutScreen
+import com.najah.mealannouncer.feature.settings.AboutViewModel
+import com.najah.mealannouncer.feature.settings.BackupViewModel
 import com.najah.mealannouncer.feature.settings.HomeVoiceActions
 import com.najah.mealannouncer.feature.settings.HomeVoiceSettingsViewModel
 import com.najah.mealannouncer.feature.settings.MealRecordActions
@@ -99,6 +120,10 @@ class MainActivity : ComponentActivity() {
     private val portionsViewModel: PortionsSettingsViewModel by viewModels()
     private val shoppingViewModel: ShoppingSettingsViewModel by viewModels()
     private val setupWizardViewModel: SetupWizardViewModel by viewModels()
+    private val searchViewModel: ManualSearchViewModel by viewModels()
+    private val journalViewModel: JournalViewModel by viewModels()
+    private val aboutViewModel: AboutViewModel by viewModels()
+    private val backupViewModel: BackupViewModel by viewModels()
 
     @Inject
     lateinit var homeVoice: HomeVoiceConfigStore
@@ -170,6 +195,10 @@ class MainActivity : ComponentActivity() {
                     portionsViewModel = portionsViewModel,
                     shoppingViewModel = shoppingViewModel,
                     setupWizardViewModel = setupWizardViewModel,
+                    searchViewModel = searchViewModel,
+                    journalViewModel = journalViewModel,
+                    aboutViewModel = aboutViewModel,
+                    backupViewModel = backupViewModel,
                     homeMealRequests = homeMealRequests.intValue,
                 )
             }
@@ -218,6 +247,12 @@ private const val ROUTE_HISTORY = "history"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_SETUP = "setup"
 
+/** Les sections du menu hamburger (point 1 de la demande du 14/11/2026). */
+private const val ROUTE_SEARCH = "search"
+private const val ROUTE_JOURNAL = "journal"
+private const val ROUTE_ABOUT = "about"
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppRoot(
     manualEntryViewModel: ManualEntryViewModel,
@@ -231,6 +266,10 @@ private fun AppRoot(
     portionsViewModel: PortionsSettingsViewModel,
     shoppingViewModel: ShoppingSettingsViewModel,
     setupWizardViewModel: SetupWizardViewModel,
+    searchViewModel: ManualSearchViewModel,
+    journalViewModel: JournalViewModel,
+    aboutViewModel: AboutViewModel,
+    backupViewModel: BackupViewModel,
     homeMealRequests: Int,
 ) {
     var route by rememberSaveable {
@@ -253,12 +292,69 @@ private fun AppRoot(
         scope.launch { snackbarHostState.showSnackbar(unavailableMessage) }
     }
 
+    // Le menu hamburger (point 1 de la demande du 14/11/2026) : les cinq sections de
+    // l'application, toujours au même endroit, en haut à gauche.
+    val appContext = LocalContext.current
+    val backupState by backupViewModel.state.collectAsStateWithLifecycle()
+    var pendingExport by remember { mutableStateOf<String?>(null) }
+    // Sauvegarde de la configuration : l'utilisateur choisit le fichier, l'écran y écrit.
+    val exportConfig = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        val text = pendingExport
+        pendingExport = null
+        val written = uri != null && text != null && runCatching {
+            appContext.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                ?: error("flux indisponible")
+        }.isSuccess
+        backupViewModel.confirmExport(written)
+    }
+    val importConfig = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) {
+            backupViewModel.dismiss()
+        } else {
+            val text = runCatching {
+                appContext.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()
+            if (text == null) backupViewModel.importText("") else backupViewModel.importText(text)
+        }
+    }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val goTo: (String) -> Unit = { destination ->
+        route = destination
+        scope.launch { drawerState.close() }
+    }
+
     // Papier aquarelle et fruits peints derrière tous les écrans (thème du 10/11/2026).
     PaperBackground(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            containerColor = Color.Transparent,
-        ) { innerPadding ->
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                AppDrawer(
+                    currentRoute = route,
+                    onNavigate = goTo,
+                )
+            },
+        ) {
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                containerColor = Color.Transparent,
+                topBar = {
+                    TopAppBar(
+                        title = { Text(stringResource(R.string.app_name)) },
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Text(
+                                    text = "☰",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                )
+                            }
+                        },
+                    )
+                },
+            ) { innerPadding ->
             when (route) {
                 ROUTE_ASSISTANT -> {
                     val state by assistantViewModel.state.collectAsStateWithLifecycle()
@@ -344,6 +440,8 @@ private fun AppRoot(
                             }
                         },
                         onPortionPick = assistantViewModel::pickPortion,
+                        onLoadFavourite = assistantViewModel::loadFavourite,
+                        onSaveFavourite = assistantViewModel::saveFavourite,
                         onPreciseByPhoto = { lineId ->
                             val target = assistantViewModel.newPrecisionPhotoTarget(lineId)
                             photoTarget = target
@@ -612,6 +710,88 @@ private fun AppRoot(
                         ),
                         setupWizard = wizardState,
                         onOpenSetupWizard = { route = ROUTE_SETUP },
+                        backup = backupState,
+                        onBackupExport = {
+                            backupViewModel.prepareExport { text ->
+                                pendingExport = text
+                                exportConfig.launch("miam-miam-config.json")
+                            }
+                        },
+                        onBackupImport = {
+                            runCatching {
+                                importConfig.launch(arrayOf("application/json", "text/plain", "*/*"))
+                            }
+                        },
+                        onDismissBackup = backupViewModel::dismiss,
+                    )
+                }
+
+                ROUTE_SEARCH -> {
+                    val state by searchViewModel.state.collectAsStateWithLifecycle()
+                    BackHandler { route = ROUTE_HOME }
+                    ManualSearchScreen(
+                        state = state,
+                        onBack = { route = ROUTE_HOME },
+                        onQueryChange = searchViewModel::onQueryChange,
+                        onSearch = searchViewModel::search,
+                        onSearchOnline = searchViewModel::searchOnline,
+                        onAddProduct = searchViewModel::addProduct,
+                        onModeChange = searchViewModel::onModeChange,
+                        onQuantityChange = searchViewModel::onQuantityChange,
+                        onRemoveLine = searchViewModel::removeLine,
+                        onTypeChange = searchViewModel::onTypeChange,
+                        onSend = searchViewModel::sendToCamaps,
+                        onFavouriteNameChange = searchViewModel::onFavouriteNameChange,
+                        onSaveFavourite = searchViewModel::saveAsFavourite,
+                        onLoadFavourite = searchViewModel::loadFavourite,
+                        onDeleteFavourite = searchViewModel::deleteFavourite,
+                        onDismissNotice = searchViewModel::dismissNotice,
+                        modifier = Modifier.padding(innerPadding),
+                    )
+                }
+
+                ROUTE_JOURNAL -> {
+                    val entries by journalViewModel.entries.collectAsStateWithLifecycle()
+                    val summary by journalViewModel.summary.collectAsStateWithLifecycle()
+                    val meals by historyViewModel.entries.collectAsStateWithLifecycle()
+                    val journalNotice by journalViewModel.notice.collectAsStateWithLifecycle()
+                    val mealNotice by historyViewModel.notice.collectAsStateWithLifecycle()
+                    val notice = journalNotice ?: mealNotice
+                    BackHandler { route = ROUTE_HOME }
+                    JournalScreen(
+                        entries = entries,
+                        summary = summary,
+                        meals = meals,
+                        notice = notice,
+                        onBack = { route = ROUTE_HOME },
+                        onDeleteEntry = journalViewModel::delete,
+                        onClearEntries = journalViewModel::clear,
+                        onFavourite = journalViewModel::saveAsFavourite,
+                        onDeleteMeal = historyViewModel::delete,
+                        onFavouriteMeal = historyViewModel::saveAsFavourite,
+                        onDismissNotice = {
+                            journalViewModel.dismissNotice()
+                            historyViewModel.dismissNotice()
+                        },
+                        modifier = Modifier.padding(innerPadding),
+                    )
+                }
+
+                ROUTE_ABOUT -> {
+                    val state by aboutViewModel.state.collectAsStateWithLifecycle()
+                    BackHandler { route = ROUTE_HOME }
+                    AboutScreen(
+                        state = state,
+                        onBack = { route = ROUTE_HOME },
+                        onDebugChange = aboutViewModel::setDebugMode,
+                        onAutoUpdateChange = aboutViewModel::setAutoUpdate,
+                        onTokenChange = aboutViewModel::setToken,
+                        onCheckUpdate = { aboutViewModel.checkForUpdate(silent = false) },
+                        onDownloadUpdate = aboutViewModel::downloadAndInstall,
+                        onShipLogs = aboutViewModel::shipLogs,
+                        onInstallDownloaded = aboutViewModel::installDownloaded,
+                        onDismissMessage = aboutViewModel::dismissMessage,
+                        modifier = Modifier.padding(innerPadding),
                     )
                 }
 
@@ -619,10 +799,68 @@ private fun AppRoot(
                     modifier = Modifier.padding(innerPadding),
                     onDescribeMeal = { route = ROUTE_ASSISTANT },
                     onAnnounceMeal = { route = ROUTE_MANUAL },
-                    onHistory = { route = ROUTE_HISTORY },
+                    onHistory = { route = ROUTE_JOURNAL },
                     onSettings = { route = ROUTE_SETTINGS },
                 )
             }
+            }
         }
+    }
+}
+
+/**
+ * Le tiroir du menu (point 1) : les cinq sections demandées, dans leur ordre.
+ *
+ * Le titre de l'application ramène à l'accueil ; la section courante est mise en avant pour
+ * qu'on sache toujours d'où l'on vient.
+ */
+@Composable
+private fun AppDrawer(currentRoute: String, onNavigate: (String) -> Unit) {
+    ModalDrawerSheet {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+        )
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+        NavigationDrawerItem(
+            label = { Text(stringResource(R.string.drawer_home)) },
+            selected = currentRoute == ROUTE_HOME,
+            onClick = { onNavigate(ROUTE_HOME) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text(stringResource(R.string.drawer_announce)) },
+            selected = currentRoute == ROUTE_ASSISTANT,
+            onClick = { onNavigate(ROUTE_ASSISTANT) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text(stringResource(R.string.drawer_search)) },
+            selected = currentRoute == ROUTE_SEARCH,
+            onClick = { onNavigate(ROUTE_SEARCH) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text(stringResource(R.string.drawer_journal)) },
+            selected = currentRoute == ROUTE_JOURNAL,
+            onClick = { onNavigate(ROUTE_JOURNAL) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text(stringResource(R.string.drawer_settings)) },
+            selected = currentRoute == ROUTE_SETTINGS,
+            onClick = { onNavigate(ROUTE_SETTINGS) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        NavigationDrawerItem(
+            label = { Text(stringResource(R.string.drawer_about)) },
+            selected = currentRoute == ROUTE_ABOUT,
+            onClick = { onNavigate(ROUTE_ABOUT) },
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
     }
 }

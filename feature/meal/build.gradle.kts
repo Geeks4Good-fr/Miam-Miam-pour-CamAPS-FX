@@ -30,7 +30,12 @@ kotlin {
 dependencies {
     api(project(":core:model"))
     implementation(project(":core:common"))
+    implementation(project(":core:database"))
+    implementation(project(":core:datastore"))
     implementation(project(":data:openfoodfacts"))
+    // La recherche manuelle lance l'automatisation : CamAPS d'abord, Carnet Glooko ensuite.
+    implementation(project(":integration:camaps"))
+    implementation(project(":integration:glookoexport"))
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

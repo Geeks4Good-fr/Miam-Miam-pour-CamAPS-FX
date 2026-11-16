@@ -19,4 +19,28 @@
     <string name="history_nightscout_sent">Nightscout : envoyé</string>
     <string name="history_nightscout_failed">Nightscout : échec de l\'envoi</string>
     <string name="history_nightscout_duplicate">Nightscout : doublon possible, envoi suspendu</string>
+    <string name="history_favourite">Favori</string>
+
+    <!-- Journal des automatisations -->
+    <string name="journal_title">Journal</string>
+    <string name="journal_back">Retour</string>
+    <string name="journal_tab_automations">Automatisations</string>
+    <string name="journal_tab_meals">Repas</string>
+    <string name="journal_empty">Aucune automatisation pour l\'instant.</string>
+    <string name="journal_empty_hint">Chaque annonce envoyée à CamAPS FX est notée ici, avec ce qu\'elle est devenue : menée jusqu\'au bout, arrêtée à CamAPS, annulée ou en échec.</string>
+    <string name="journal_summary_title">Résumé</string>
+    <string name="journal_summary_complete">Menées jusqu\'au bout (CamAPS puis Carnet Glooko) : %1$d</string>
+    <string name="journal_summary_camaps_only">Seulement jusqu\'à CamAPS : %1$d</string>
+    <string name="journal_summary_other">Annulées : %1$d · échecs : %2$d</string>
+    <string name="journal_clear">Vider le journal</string>
+    <string name="journal_clear_title">Vider le journal ?</string>
+    <string name="journal_clear_message">Toutes les lignes du journal seront effacées. Les repas enregistrés et l\'historique ne sont pas touchés.</string>
+    <string name="journal_clear_confirm">Vider</string>
+    <string name="journal_clear_cancel">Annuler</string>
+    <string name="journal_delete">Supprimer</string>
+    <string name="journal_favourite">Favori</string>
+    <string name="journal_outcome_complete">Jusqu\'au bout</string>
+    <string name="journal_outcome_camaps_only">CamAPS seulement</string>
+    <string name="journal_outcome_cancelled">Annulé</string>
+    <string name="journal_outcome_failed">Échec</string>
 </resources>

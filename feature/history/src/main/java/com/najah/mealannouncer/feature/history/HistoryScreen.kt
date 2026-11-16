@@ -40,6 +40,9 @@ import java.util.Locale
  *
  * L'historique sert à répondre à une seule question : « qu'est-ce que j'ai annoncé, et
  * quand ? » Il affiche donc le total, le détail tel qu'il a été saisi et la valeur envoyée.
+ *
+ * Depuis le 14/11/2026, il s'affiche aussi comme onglet du journal ([JournalScreen], d'où
+ * [showHeader] = false) et propose d'ajouter un repas aux favoris pour le réannoncer.
  */
 @Composable
 fun HistoryScreen(
@@ -47,22 +50,26 @@ fun HistoryScreen(
     onBack: () -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
+    showHeader: Boolean = true,
+    onFavourite: ((HistoryEntry) -> Unit)? = null,
 ) {
     var pendingDelete by remember { mutableStateOf<HistoryEntry?>(null) }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 8.dp, end = 16.dp, top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.history_back)) }
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = stringResource(R.string.history_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
+        if (showHeader) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 16.dp, top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onBack) { Text(stringResource(R.string.history_back)) }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.history_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
         }
 
         if (entries.isEmpty()) {
@@ -96,7 +103,11 @@ fun HistoryScreen(
                     )
                 }
                 items(entries, key = { it.meal.id }) { entry ->
-                    MealCard(entry = entry, onDelete = { pendingDelete = entry })
+                    MealCard(
+                        entry = entry,
+                        onDelete = { pendingDelete = entry },
+                        onFavourite = onFavourite?.let { callback -> { callback(entry) } },
+                    )
                 }
             }
         }
@@ -136,7 +147,7 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun MealCard(entry: HistoryEntry, onDelete: () -> Unit) {
+private fun MealCard(entry: HistoryEntry, onDelete: () -> Unit, onFavourite: (() -> Unit)?) {
     val meal = entry.meal
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -166,6 +177,12 @@ private fun MealCard(entry: HistoryEntry, onDelete: () -> Unit) {
                 }
                 TextButton(onClick = onDelete) {
                     Text(stringResource(R.string.history_delete))
+                }
+            }
+
+            if (onFavourite != null) {
+                TextButton(onClick = onFavourite) {
+                    Text(stringResource(R.string.history_favourite))
                 }
             }
 

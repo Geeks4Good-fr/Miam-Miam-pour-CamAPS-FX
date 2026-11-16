@@ -7,6 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.najah.mealannouncer.core.model.CarbResult
 import com.najah.mealannouncer.core.model.Carbs
 import com.najah.mealannouncer.core.model.MealUnit
+import com.najah.mealannouncer.core.model.AutomationOutcome
+import com.najah.mealannouncer.core.model.AutomationSource
+import com.najah.mealannouncer.core.model.FavoriteMeal
+import com.najah.mealannouncer.core.model.FavoriteMealLine
+import com.najah.mealannouncer.core.database.repository.FavoriteMealRepository
+import com.najah.mealannouncer.core.database.repository.JournalRepository
 import com.najah.mealannouncer.core.datastore.MealRecordSettings
 import com.najah.mealannouncer.core.datastore.AiSecretStore
 import com.najah.mealannouncer.core.datastore.ShoppingSettings
@@ -111,6 +117,8 @@ data class AssistantUiState(
     val recordNotice: String? = null,
     /** La conversation du repas en cours, `null` quand il n'y en a pas. */
     val conversation: ConversationUi? = null,
+    /** Les repas favoris : le même petit-déjeuner, le même goûter, annoncés en un geste. */
+    val favourites: List<FavoriteMeal> = emptyList(),
 ) {
 
     val busy: Boolean
@@ -278,6 +286,9 @@ class MealAssistantViewModel @Inject constructor(
     private val shopping: ShoppingSettings,
     private val wakeWordLink: WakeWordLink = WakeWordLink(),
     private val wakeWordArbitrator: WakeWordArbitrator = WakeWordArbitrator(),
+    /** Journal d'automatisation (point 3) et repas favoris (point 4). */
+    private val journal: JournalRepository,
+    private val favorites: FavoriteMealRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AssistantUiState())
@@ -293,6 +304,9 @@ class MealAssistantViewModel @Inject constructor(
     /** Repas compris mais resté en plan devant CamAPS (description, heure) : repris par un total dicté. */
     private var unsentMeal: Pair<String, Long>? = null
     val unlockWanted: StateFlow<Boolean> = _unlockWanted.asStateFlow()
+
+    /** Faux tant que la base n'a pas été vérifiée : rien ne s'affiche. */
+    private var favoriteLineSeq = 1_000_000L
 
     private var recordingJob: Job? = null
 
@@ -337,6 +351,12 @@ class MealAssistantViewModel @Inject constructor(
     private var appendNextInput: Boolean = false
 
     init {
+        // Les favoris suivent la base : un repas enregistré apparaît sans recharger l'écran.
+        viewModelScope.launch {
+            favorites.observeFavorites().collect { list ->
+                _state.update { it.copy(favourites = list) }
+            }
+        }
         // Savoir si la base locale est là change tout : sans elle, chaque aliment part sur
         // Internet. On le dit à l'écran plutôt que de le laisser deviner.
         viewModelScope.launch {
@@ -1595,6 +1615,33 @@ class MealAssistantViewModel @Inject constructor(
      */
     private fun packageUnit(reading: PackageReading): WebCarbEstimate? {
         if (!reading.knowsUnit) return null
+        // La colonne « par portion » passe avant tout calcul (point 7 de la demande du
+        // 14/11/2026) : l'emballage donne déjà les glucides d'une portion déterminée, la lire
+        // évite une division inutile — et une erreur entre deux colonnes voisines.
+        val portionCarbs = reading.carbsPerPortion
+        if (portionCarbs != null && reading.carbsPerUnit == null) {
+            val weight = reading.portionGrams
+            val label = reading.portionLabel?.takeIf { it.isNotBlank() } ?: "une portion"
+            val detail = when {
+                weight != null && reading.readOnPackage ->
+                    "$label : ${formatQuantityText(portionCarbs)} g de glucides pour " +
+                        "${formatQuantityText(weight)} g (colonne « par portion » lue sur l'emballage)"
+                weight != null ->
+                    "$label : ${formatQuantityText(portionCarbs)} g de glucides pour " +
+                        "${formatQuantityText(weight)} g (lu sur l'emballage)"
+                else ->
+                    "$label : ${formatQuantityText(portionCarbs)} g de glucides " +
+                        "(colonne « par portion » lue sur l'emballage)"
+            }
+            return WebCarbEstimate(
+                name = reading.product ?: "photo de l'emballage",
+                carbsPer100g = reading.carbsPer100g ?: 0.0,
+                sourceUrl = null,
+                carbsPerUnit = portionCarbs,
+                unitGrams = null,
+                unitDetail = detail,
+            )
+        }
         val grams = reading.pieceGrams
         val perUnit = reading.carbsPerUnit?.takeIf { reading.readOnPackage || reading.unitGrams == null }
         val detail = when {
@@ -2075,6 +2122,63 @@ class MealAssistantViewModel @Inject constructor(
     }
 
     /**
+     * Recharge un repas favori (point 4 de la demande du 14/11/2026).
+     *
+     * Les lignes du favori remplacent ce qui est à l'écran, avec leurs valeurs recopiées : le
+     * total est recalculé, jamais repris tel quel, et reste corrigeable au gramme.
+     */
+    fun loadFavourite(id: String) {
+        val favorite = _state.value.favourites.firstOrNull { it.id == id } ?: return
+        val lines = favorite.lines.map { line ->
+            val id = favoriteLineSeq++
+            AssistantLine(
+                id = id,
+                name = if (line.brand.isNullOrBlank()) line.name else "${line.name} (${line.brand})",
+                rawText = favorite.name,
+                quantityText = formatQuantityText(line.quantity),
+                unit = line.unit,
+                product = line.toProduct("favori"),
+            )
+        }
+        _state.update {
+            it.copy(
+                lines = lines,
+                phase = AssistantPhase.READY,
+                camaps = null,
+                recordNotice = "« ${favorite.name} » rappelé : ${favorite.total.format()} g.",
+            )
+        }
+        viewModelScope.launch { favorites.markUsed(id) }
+    }
+
+    /** Enregistre le repas affiché comme favori, pour le réannoncer d'un geste. */
+    fun saveFavourite(name: String) {
+        val lines = _state.value.lines
+        if (lines.isEmpty()) return
+        val label = name.trim().ifBlank { lines.take(2).joinToString(" + ") { it.name } }.take(80)
+        val favoriteLines = lines.map { line ->
+            FavoriteMealLine(
+                name = line.product?.name ?: line.name,
+                brand = line.product?.brand,
+                barcode = line.product?.barcode,
+                quantity = line.quantity,
+                unit = line.unit,
+                carbsPer100g = line.product?.carbsPer100g,
+                carbsPer100ml = line.product?.carbsPer100ml,
+                carbsPerUnit = line.product?.carbsPerUnit,
+                portionGrams = line.product?.defaultPortionGrams,
+                portionMl = line.product?.defaultPortionMl,
+                servingLabel = line.product?.servingLabel,
+                packageGrams = line.product?.packageGrams,
+            )
+        }
+        viewModelScope.launch {
+            favorites.create(label, favoriteLines)
+            _state.update { it.copy(recordNotice = "« $label » enregistré dans les favoris.") }
+        }
+    }
+
+    /**
      * Écrit les grammes dans CamAPS FX.
      *
      * Deux chemins selon le réglage « Insertion automatique » :
@@ -2109,24 +2213,30 @@ class MealAssistantViewModel @Inject constructor(
      * Aujourd'hui : le **Carnet Glooko** (journal, aucune insuline). La **note Nightscout** est
      * gelée le temps de la réécriture de la couche NS (fork NightscoutCamAPS) : elle sera branchée
      * ici quand l'API sera figée.
+     *
+     * Rend `true` quand une cible a réellement été écrite : c'est ce que le journal
+     * d'automatisation distingue d'un arrêt à CamAPS.
      */
-    private suspend fun writeSuiviTargets(description: String, carbs: Int, force: Boolean = false) {
+    private suspend fun writeSuiviTargets(description: String, carbs: Int, force: Boolean = false): Boolean {
         val config = mealRecord.config.value
         if ((force || config.writesGlookoCarnet()) && description.isNotBlank()) {
             val moment = GlookoCarnetMoment.forHour(LocalTime.now().hour)
-            when (val result = glookoCarnet.addEntry(description, carbs, moment)) {
+            return when (val result = glookoCarnet.addEntry(description, carbs, moment)) {
                 is GlookoCarnetResult.Saved -> {
                     _state.update { it.copy(recordNotice = "Repas noté dans le Carnet Glooko.") }
                     say("Repas noté dans le Carnet Glooko.")
+                    true
                 }
                 is GlookoCarnetResult.Failed -> {
                     // Le masque cache les écrans de Glooko : un échec doit donc se dire, sinon
                     // l'utilisateur croit son repas noté.
                     _state.update { it.copy(recordNotice = "Carnet Glooko : ${result.message}") }
                     say("Le repas n'a pas pu être noté dans le Carnet Glooko.")
+                    false
                 }
             }
         }
+        return false
     }
 
     /** Coupe le dialogue de confirmation CamAPS : plus de question, plus de micro, rien d'écrit. */
@@ -2212,6 +2322,13 @@ class MealAssistantViewModel @Inject constructor(
                 // la phrase qui reprend la main — le repas compris est gardé pour le Carnet.
                 unsentMeal = effectiveDescription to System.currentTimeMillis()
                 Log.w(HOME_TAG, "CamAPS non atteint : $result")
+                journal.record(
+                    carbs = effectiveCarbs,
+                    description = effectiveDescription,
+                    source = AutomationSource.ASSISTANT,
+                    outcome = AutomationOutcome.FAILED,
+                    detail = (result as? CamapsWriteResult.Failed)?.message ?: "CamAPS non atteint",
+                )
                 say(
                     "Je n'ai rien pu saisir : CamAPS affiche un message. Règle-le, puis dis : " +
                         "Okay Nabu, annonce $effectiveCarbs grammes.",
@@ -2221,6 +2338,15 @@ class MealAssistantViewModel @Inject constructor(
             unsentMeal = null
             val glooko = forceGlooko || mealRecord.config.value.writesGlookoCarnet()
             if (!glooko || effectiveDescription.isBlank()) {
+                // Arrêt volontaire à CamAPS : le suivi est coupé, et le journal doit le montrer
+                // plutôt que de laisser croire à un repas mené jusqu'au bout.
+                journal.record(
+                    carbs = effectiveCarbs,
+                    description = effectiveDescription,
+                    source = AutomationSource.ASSISTANT,
+                    outcome = AutomationOutcome.CAMAPS_ONLY,
+                    detail = "Suivi diabétologue coupé : rien n'est noté après CamAPS.",
+                )
                 say("$effectiveCarbs grammes saisis dans CamAPS. Appuie sur Confirmer.")
                 return
             }
@@ -2231,12 +2357,39 @@ class MealAssistantViewModel @Inject constructor(
                 it.copy(camapsConfirm = null, recordNotice = "En attente de ta confirmation dans CamAPS…")
             }
             when (camaps.awaitMealOutcome(CAMAPS_CONFIRM_WAIT_MS)) {
-                CamapsMealOutcome.CONFIRMED -> writeSuiviTargets(effectiveDescription, effectiveCarbs, force = forceGlooko)
+                CamapsMealOutcome.CONFIRMED -> {
+                    val tracked = writeSuiviTargets(effectiveDescription, effectiveCarbs, force = forceGlooko)
+                    journal.record(
+                        carbs = effectiveCarbs,
+                        description = effectiveDescription,
+                        source = AutomationSource.ASSISTANT,
+                        outcome = if (tracked) AutomationOutcome.COMPLETE else AutomationOutcome.CAMAPS_ONLY,
+                        detail = if (tracked) {
+                            "Confirmé dans CamAPS, repas noté dans le Carnet Glooko."
+                        } else {
+                            "Confirmé dans CamAPS, Carnet Glooko non écrit."
+                        },
+                    )
+                }
                 CamapsMealOutcome.CANCELLED -> {
+                    journal.record(
+                        carbs = effectiveCarbs,
+                        description = effectiveDescription,
+                        source = AutomationSource.ASSISTANT,
+                        outcome = AutomationOutcome.CANCELLED,
+                        detail = "Annulé dans CamAPS.",
+                    )
                     _state.update { it.copy(recordNotice = "Annulé dans CamAPS : rien n'est noté dans le Carnet Glooko.") }
                     say("Annulé dans CamAPS. Je ne note rien dans le Carnet.")
                 }
                 CamapsMealOutcome.TIMEOUT, CamapsMealOutcome.UNKNOWN -> {
+                    journal.record(
+                        carbs = effectiveCarbs,
+                        description = effectiveDescription,
+                        source = AutomationSource.ASSISTANT,
+                        outcome = AutomationOutcome.CAMAPS_ONLY,
+                        detail = "Confirmation dans CamAPS non observée.",
+                    )
                     _state.update {
                         it.copy(recordNotice = "Confirmation CamAPS non vue : le Carnet Glooko n'a pas été écrit.")
                     }

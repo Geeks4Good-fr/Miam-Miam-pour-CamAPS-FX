@@ -62,4 +62,7 @@
     <string name="assistant_photo_discard">Écarter</string>
     <string name="assistant_photo_total">Total proposé : %1$s g de glucides (%2$d aliment(s) chiffré(s))</string>
     <string name="assistant_photo_missing">valeur manquante</string>
+    <string name="assistant_favourites">Repas favoris</string>
+    <string name="assistant_favourite_name">Nom du favori</string>
+    <string name="assistant_favourite_save">Enregistrer en favori</string>
 </resources>

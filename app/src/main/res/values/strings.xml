@@ -2,4 +2,12 @@
 <resources>
     <string name="app_name">Miam-Miam pour CamAPS FX</string>
     <string name="home_announce_unavailable">Cette étape arrive à un prochain jalon : rien n\'a été envoyé.</string>
+
+    <!-- Menu hamburger (14/11/2026) -->
+    <string name="drawer_home">Accueil</string>
+    <string name="drawer_announce">Annonce du repas</string>
+    <string name="drawer_search">Recherche manuelle</string>
+    <string name="drawer_journal">Journal</string>
+    <string name="drawer_settings">Paramètres</string>
+    <string name="drawer_about">À propos</string>
 </resources>

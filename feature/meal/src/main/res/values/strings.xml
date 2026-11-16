@@ -41,4 +41,43 @@
     <string name="manual_unit_portion">portion</string>
     <string name="manual_unit_cup">tasse</string>
     <string name="manual_unit_slice">tranche</string>
+
+    <!-- Recherche manuelle dans Open Food Facts (menu hamburger) -->
+    <string name="search_title">Recherche manuelle</string>
+    <string name="search_back">Retour</string>
+    <string name="search_label">Chercher dans la base Open Food Facts</string>
+    <string name="search_action">Chercher</string>
+    <string name="search_online">Chercher aussi en ligne</string>
+    <string name="search_hint">La base du téléphone répond hors ligne ; chacun de vos aliments a son propre calculateur.</string>
+    <string name="search_failed">Open Food Facts injoignable : la base locale reste disponible.</string>
+    <string name="search_basket">Mon repas</string>
+    <string name="search_nothing_yet">Aucun aliment pour l\'instant. Cherchez-en un ci-dessus.</string>
+    <string name="search_results">Résultats</string>
+    <string name="search_no_result">Aucun produit trouvé.</string>
+    <string name="search_favourites">Repas favoris (annonce rapide)</string>
+    <string name="search_products_favourites">Produits favoris</string>
+    <string name="search_add">Ajouter</string>
+    <string name="search_remove">Retirer</string>
+    <string name="search_use">Charger</string>
+    <string name="search_no_carb_data">Aucune donnée de glucides</string>
+    <string name="search_quantity_hint">Entrez une quantité.</string>
+    <string name="search_mode_weight">au poids</string>
+    <string name="search_mode_volume">au volume</string>
+    <string name="search_mode_unit">à la pièce</string>
+    <string name="search_mode_portion">à la portion</string>
+    <string name="search_mode_package">au paquet</string>
+    <string name="search_unit_gram">grammes</string>
+    <string name="search_unit_ml">millilitres</string>
+    <string name="search_unit_unit">pièces</string>
+    <string name="search_unit_portion">portions</string>
+    <string name="search_total">Total du repas</string>
+    <string name="search_total_unresolved">dont %1$d aliment(s) non chiffré(s)</string>
+    <string name="search_camaps_value">Valeur à saisir dans CamAPS FX : %1$d g</string>
+    <string name="search_type_meal">repas</string>
+    <string name="search_type_slow">absorption lente</string>
+    <string name="search_type_hypo">hypo</string>
+    <string name="search_send">Lancer l\'automatisation (CamAPS FX)</string>
+    <string name="search_sending">Envoi en cours…</string>
+    <string name="search_favourite_name">Nom du favori</string>
+    <string name="search_favourite_save">Enregistrer en favori</string>
 </resources>

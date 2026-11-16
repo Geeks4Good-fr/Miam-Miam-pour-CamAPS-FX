@@ -1,5 +1,6 @@
 package com.najah.mealannouncer.feature.assistant
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -23,6 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -69,7 +75,12 @@ fun MealAssistantScreen(
     onPreciseByPhoto: (Long) -> Unit = {},
     /** Une portion en images touchée : la ligne passe à ce poids (grammes). */
     onPortionPick: (Long, Double) -> Unit = { _, _ -> },
+    /** Un repas favori rappelé d'un geste (point 4 de la demande du 14/11/2026). */
+    onLoadFavourite: (String) -> Unit = {},
+    /** Le repas affiché enregistré comme favori, sous le nom donné. */
+    onSaveFavourite: (String) -> Unit = {},
 ) {
+    var favouriteName by rememberSaveable { mutableStateOf("") }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -106,6 +117,31 @@ fun MealAssistantScreen(
         }
 
         Spacer(Modifier.height(20.dp))
+
+        // Les repas favoris : le même goûter, annoncé d'un geste (point 4).
+        if (state.favourites.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.assistant_favourites),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.favourites.forEach { favourite ->
+                    AssistChip(
+                        onClick = { onLoadFavourite(favourite.id) },
+                        label = { Text("${favourite.name} · ${favourite.total.format()} g") },
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
         Button(
             onClick = onMic,
             enabled = !state.busy,
@@ -320,6 +356,24 @@ fun MealAssistantScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.assistant_announce))
+            }
+            // Enregistrer ce repas comme favori : le même goûter, réannoncé d'un geste.
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = favouriteName,
+                    onValueChange = { favouriteName = it },
+                    label = { Text(stringResource(R.string.assistant_favourite_name)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = { onSaveFavourite(favouriteName) }) {
+                    Text(stringResource(R.string.assistant_favourite_save))
+                }
             }
             state.camaps?.let { result ->
                 Spacer(Modifier.height(10.dp))

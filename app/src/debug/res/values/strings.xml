@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    La version de test porte un identifiant différent (`…mealannouncer.debug`) : Android la voit
+    donc comme une seconde application. Sans nom distinct, deux icônes identiques se retrouvent
+    sur l'écran d'accueil (constat du 15/11/2026).
+-->
+<resources>
+    <string name="app_name">Miam-Miam (test)</string>
+</resources>

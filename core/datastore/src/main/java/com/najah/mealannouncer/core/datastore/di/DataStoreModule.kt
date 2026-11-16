@@ -2,6 +2,8 @@ package com.najah.mealannouncer.core.datastore.di
 
 import com.najah.mealannouncer.core.datastore.HomeVoiceConfigStore
 import com.najah.mealannouncer.core.datastore.HomeVoiceSettings
+import com.najah.mealannouncer.core.datastore.DebugConfigStore
+import com.najah.mealannouncer.core.datastore.DebugSettings
 import com.najah.mealannouncer.core.datastore.KeystoreSecretStore
 import com.najah.mealannouncer.core.datastore.MealRecordConfigStore
 import com.najah.mealannouncer.core.datastore.MealRecordSettings
@@ -56,6 +58,11 @@ abstract class DataStoreModule {
     @Binds
     @Singleton
     abstract fun bindShoppingSettings(impl: ShoppingConfigStore): ShoppingSettings
+
+    /** Mode debug et mises à jour (page « À propos »). */
+    @Binds
+    @Singleton
+    abstract fun bindDebugSettings(impl: DebugConfigStore): DebugSettings
 
     /**
      * La même instance que [VoxtralSecretStore] : une seule clé Mistral, un seul coffre.

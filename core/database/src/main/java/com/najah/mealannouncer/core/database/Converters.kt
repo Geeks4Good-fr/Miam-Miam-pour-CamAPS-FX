@@ -1,6 +1,8 @@
 package com.najah.mealannouncer.core.database
 
 import androidx.room.TypeConverter
+import com.najah.mealannouncer.core.model.AutomationOutcome
+import com.najah.mealannouncer.core.model.AutomationSource
 import com.najah.mealannouncer.core.model.CamapsStatus
 import com.najah.mealannouncer.core.model.FoodSource
 import com.najah.mealannouncer.core.model.GlookoStatus
@@ -51,4 +53,19 @@ class Converters {
     @TypeConverter
     fun toMealUnit(value: String): MealUnit =
         MealUnit.entries.firstOrNull { it.name == value } ?: MealUnit.UNKNOWN
+
+    @TypeConverter
+    fun fromAutomationOutcome(value: AutomationOutcome): String = value.name
+
+    /** Une valeur inconnue retombe sur `FAILED` : mieux vaut sous-estimer une réussite. */
+    @TypeConverter
+    fun toAutomationOutcome(value: String): AutomationOutcome =
+        AutomationOutcome.entries.firstOrNull { it.name == value } ?: AutomationOutcome.FAILED
+
+    @TypeConverter
+    fun fromAutomationSource(value: AutomationSource): String = value.name
+
+    @TypeConverter
+    fun toAutomationSource(value: String): AutomationSource =
+        AutomationSource.entries.firstOrNull { it.name == value } ?: AutomationSource.ASSISTANT
 }

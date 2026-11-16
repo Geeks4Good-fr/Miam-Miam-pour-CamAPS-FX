@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Le seul dossier que l'appareil photo peut écrire : le cache de l'application, sous-dossier
-    « plate ». Une photo d'assiette n'est donc jamais enregistrée dans la galerie de
-    l'utilisateur, et disparaît dès qu'elle a été lue.
+    Les deux seuls dossiers que l'application partage :
+    - « plate » : le cache où l'appareil photo écrit une photo d'assiette. Une photo n'est donc
+      jamais enregistrée dans la galerie de l'utilisateur, et disparaît dès qu'elle a été lue ;
+    - « updates » : l'APK téléchargé pour une mise à jour, partagé avec l'installateur d'Android
+      et avec lui seul (point 6 de la demande du 14/11/2026).
 -->
 <paths>
     <cache-path name="assiette" path="plate/" />
+    <cache-path name="updates" path="updates/" />
+    <cache-path name="journaux" path="logs/" />
 </paths>
