@@ -1,5 +1,20 @@
 # Journal des modifications
 
+## 0.15.1 — 2026-11-16 — Journaux envoyés au support de Geeks4Good
+
+### Modifié
+
+- **Envoi des journaux** (À propos → mode debug) : les journaux partent désormais vers le serveur
+  de support de Geeks4Good (Odoo), en pièce jointe **privée** d'un ticket, au lieu des services de
+  collage publics (dpaste.com, paste.rs). Seule l'équipe de support peut les lire, et ils sont
+  effacés au bout de 30 jours. L'écran affiche le numéro du ticket (copié dans le presse-papier).
+  Aucun compte ni jeton à créer : le champ « Jeton GitHub » disparaît.
+
+### Corrigé
+
+- Le bouton « Partager les journaux » ouvre bien le partage d'Android (courriel, messagerie) ; il
+  lançait par erreur l'envoi en ligne.
+
 ## 0.15.0 — 2026-11-16 — Menu, recherche manuelle, journal, favoris, sauvegarde et mises à jour
 
 ### Ajouté

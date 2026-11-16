@@ -19,19 +19,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 /**
@@ -47,15 +41,14 @@ fun AboutScreen(
     onBack: () -> Unit,
     onDebugChange: (Boolean) -> Unit,
     onAutoUpdateChange: (Boolean) -> Unit,
-    onTokenChange: (String) -> Unit,
     onCheckUpdate: () -> Unit,
     onDownloadUpdate: () -> Unit,
     onShipLogs: () -> Unit,
+    onShareLogs: () -> Unit,
     onInstallDownloaded: () -> Unit = {},
     onDismissMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showToken by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -128,38 +121,16 @@ fun AboutScreen(
                             },
                         )
                     }
-                    OutlinedButton(onClick = onShipLogs, enabled = !state.shipping) {
+                    OutlinedButton(onClick = onShareLogs, enabled = !state.shipping) {
                         Text(stringResource(R.string.about_debug_share))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { showToken = !showToken }) {
-                        Text(
-                            if (showToken) {
-                                "Masquer le jeton"
-                            } else {
-                                stringResource(R.string.about_debug_token_label)
-                            },
-                        )
-                    }
-                    if (state.shipping) {
-                        Spacer(Modifier.width(8.dp))
-                        CircularProgressIndicator(modifier = Modifier.height(16.dp).width(16.dp))
-                    }
-                }
-                if (showToken) {
-                    OutlinedTextField(
-                        value = state.config.gistToken.orEmpty(),
-                        onValueChange = onTokenChange,
-                        label = { Text(stringResource(R.string.about_debug_token_label)) },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                if (state.shipping) {
+                    CircularProgressIndicator(modifier = Modifier.height(16.dp).width(16.dp))
                 }
                 Text(
-                    text = stringResource(R.string.about_debug_token_help),
+                    text = stringResource(R.string.about_debug_where),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

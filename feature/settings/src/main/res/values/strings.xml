@@ -207,10 +207,9 @@
     <string name="about_debug_explain">Coché, les journaux de l\'application sont envoyés au développeur après une annonce ou un incident.\n\nCes journaux peuvent contenir des informations personnelles : repas, produits choisis, adresses des services que vous avez configurés, messages d\'erreur. Rien d\'autre n\'est transmis, et rien ne part si la case est décochée. Le serveur de glycémie n\'est jamais joint : seuls les journaux textuels sortent.</string>
     <string name="about_debug_send_now">Envoyer les journaux maintenant</string>
     <string name="about_debug_share">Partager les journaux (courriel, messagerie)</string>
-    <string name="about_debug_token_label">Jeton GitHub (envoi automatique)</string>
-    <string name="about_debug_token_help">Facultatif. Avec un jeton GitHub à portée limitée « gist », les journaux partent tout seuls. Sans jeton, le bouton de partage reste disponible.</string>
+    <string name="about_debug_where">Les journaux partent vers le support de Geeks4Good (serveur Odoo de l'association), en pièce jointe privée d'un ticket : seule l'équipe de support peut les lire, et ils sont effacés au bout de 30 jours. Aucun compte ni jeton à créer. Sans connexion, utilisez le partage.</string>
     <string name="about_debug_sending">Envoi des journaux…</string>
-    <string name="about_debug_sent">Journaux envoyés : %1$s</string>
+    <string name="about_debug_sent">Journaux reçus par le support — référence %1$s (copiée)</string>
     <string name="about_debug_failed">Envoi impossible : %1$s</string>
     <string name="about_updates_title">Mises à jour</string>
     <string name="about_updates_auto">Vérifier au démarrage</string>

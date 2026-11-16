@@ -93,10 +93,6 @@ class AboutViewModel @Inject constructor(
         debug.save(debug.config.value.copy(autoUpdate = enabled))
     }
 
-    fun setToken(token: String) {
-        debug.save(debug.config.value.copy(gistToken = token.ifBlank { null }))
-    }
-
     fun dismissMessage() {
         _state.update { it.copy(shipMessage = null) }
     }
@@ -160,27 +156,39 @@ class AboutViewModel @Inject constructor(
             }
     }
 
-    /** Envoie les journaux au développeur — **sans rien demander** à l'utilisateur (demande du
-     * 15/11/2026) : ni compte, ni jeton. L'adresse du dépôt est copiée dans le presse-papier et
-     * affichée. Un jeton GitHub, s'il a été saisi, reste possible et passe par un Gist privé.
+    /**
+     * Envoie les journaux à l'équipe de Geeks4Good, dans l'Odoo du projet — **sans rien
+     * demander** à l'utilisateur : ni compte, ni jeton (demandes des 15 et 16/11/2026). Le numéro
+     * du ticket est copié dans le presse-papier et affiché.
      */
     fun shipLogs() {
         viewModelScope.launch {
             _state.update { it.copy(shipping = true, shipMessage = null) }
-            val token = debug.config.value.gistToken
-            val result = if (token.isNullOrBlank()) logs.shipToPasteBin() else logs.shipToGist(token)
-            result.gistUrl?.let(::copyToClipboard)
+            val result = logs.shipToOdoo()
+            result.reference?.let(::copyToClipboard)
             _state.update {
                 it.copy(
                     shipping = false,
-                    shipMessage = result.gistUrl ?: result.error ?: "envoi impossible",
+                    shipMessage = result.reference ?: result.error ?: "envoi impossible",
                     shipError = !result.isSuccess,
                 )
             }
         }
     }
 
-    /** Met l'adresse dans le presse-papier : elle peut ainsi être collée n'importe où. */
+    /** Repli hors connexion : ouvre le partage d'Android (courriel, messagerie) sur le fichier. */
+    fun shareLogs() {
+        viewModelScope.launch {
+            runCatching { logs.share(logs.collect()) }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(shipMessage = error.message ?: "partage impossible", shipError = true)
+                    }
+                }
+        }
+    }
+
+    /** Met le numéro dans le presse-papier : il peut ainsi être collé n'importe où. */
     private fun copyToClipboard(text: String) {
         runCatching {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

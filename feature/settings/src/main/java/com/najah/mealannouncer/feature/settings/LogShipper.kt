@@ -12,17 +12,18 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Résultat d'un envoi de journaux.
  *
- * [gistUrl] n'est renseignée qu'en cas d'envoi réussi ; sans jeton, l'application retombe sur le
- * partage d'Android, qui rend la main à l'utilisateur.
+ * [reference] est le numéro du ticket créé dans l'Odoo de Geeks4Good, renseigné seulement si
+ * l'envoi a réussi. Aucune adresse n'est jamais rendue : les journaux ne sont pas publics.
  */
 data class LogShipResult(
-    val gistUrl: String? = null,
+    val reference: String? = null,
     val file: File? = null,
     val error: String? = null,
 ) {
@@ -30,15 +31,18 @@ data class LogShipResult(
 }
 
 /**
- * Journaux de l'application, et leur envoi au développeur (point 6 de la demande du
+ * Journaux de l'application, et leur envoi à l'équipe de Geeks4Good (point 6 de la demande du
  * 14/11/2026, inspiré de « Filmage »).
  *
- * Deux précautions :
+ * Trois précautions :
  * 1. le fichier ne contient **que** les journaux de Miam-Miam (ses propres étiquettes) plus
  *    quelques lignes de contexte (version, modèle, Android) : rien de la vie privée du reste du
  *    téléphone ;
  * 2. il n'est **jamais** envoyé sans le mode debug — sauf le bouton « envoyer maintenant », qui
- *    est un geste explicite.
+ *    est un geste explicite ;
+ * 3. il part vers l'Odoo de Geeks4Good, en pièce jointe **privée** d'un ticket de support
+ *    (demande du 16/11/2026) : plus de service de collage public, plus de jeton à saisir.
+ *    Seule l'équipe de support le lit, et il est effacé au bout de 30 jours.
  */
 @Singleton
 class LogShipper @Inject constructor(
@@ -56,132 +60,76 @@ class LogShipper @Inject constructor(
     }
 
     /**
-     * Envoie le fichier dans un « Gist » privé (le journal reste privé : Gist secret, non
-     * listé). Rend l'adresse en cas de succès, sinon la raison.
+     * Envoie les journaux au point d'entrée Odoo de Geeks4Good, **sans compte ni jeton** pour
+     * l'utilisateur. Rend le numéro du ticket, à donner au support si besoin.
+     *
+     * La clé d'application envoyée en en-tête n'est pas un secret (elle est dans le code
+     * public) : elle sert seulement à écarter le bruit. Les vraies protections sont côté serveur
+     * (taille bornée, nombre d'envois limité, pièce jointe privée).
      */
-    suspend fun shipToGist(token: String): LogShipResult = withContext(Dispatchers.IO) {
+    suspend fun shipToOdoo(comment: String? = null): LogShipResult = withContext(Dispatchers.IO) {
         val file = collect()
         val payload = JSONObject().apply {
-            put("description", "Miam-Miam — journaux du ${Instant.now()}")
-            put("public", false)
-            put(
-                "files",
-                JSONObject().put(
-                    file.name,
-                    JSONObject().put("content", file.readText().take(MAX_CONTENT)),
-                ),
-            )
+            put("app", context.packageName)
+            put("version", versionName())
+            put("device", deviceLabel())
+            put("install_id", installId())
+            comment?.trim()?.takeIf { it.isNotEmpty() }?.let { put("comment", it.take(MAX_COMMENT)) }
+            put("content", file.readText().take(MAX_CONTENT))
         }.toString()
         var connection: HttpURLConnection? = null
         try {
-            val conn = (URL(GISTS_URL).openConnection() as HttpURLConnection).apply {
+            val conn = (URL(ODOO_LOGS_URL).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
-                setRequestProperty("Authorization", "Bearer $token")
-                setRequestProperty("Accept", "application/vnd.github+json")
                 setRequestProperty("User-Agent", "Miam-Miam-Logs")
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("X-G4G-App-Key", APP_KEY)
             }
             connection = conn
             conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
-            if (code !in 200..299) {
-                val detail = conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                val reason = when (code) {
-                    401 -> "jeton GitHub refusé"
-                    404 -> "dépôt Gist indisponible"
-                    422 -> "contenu refusé"
-                    else -> "serveur HTTP $code"
-                }
-                return@withContext LogShipResult(
-                    file = file,
-                    error = if (detail.isBlank()) reason else "$reason (${detail.take(160)})",
-                )
+            val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            val json = runCatching { JSONObject(body) }.getOrNull()
+            if (code in 200..299 && json?.optBoolean("ok") == true) {
+                val ref = json.optString("ref").takeIf { it.isNotBlank() } ?: "reçu"
+                return@withContext LogShipResult(reference = ref, file = file)
             }
-            val body = conn.inputStream.bufferedReader().use { it.readText() }
-            val url = runCatching { JSONObject(body).optString("html_url") }.getOrDefault("")
-            LogShipResult(gistUrl = url.takeIf { it.isNotBlank() } ?: "Gist créé", file = file)
+            val serverReason = json?.optString("error")?.takeIf { it.isNotBlank() }
+            val reason = serverReason ?: when (code) {
+                403 -> "envoi refusé par le serveur"
+                400 -> "envoi mal formé"
+                413 -> "journaux trop volumineux"
+                429 -> "trop d'envois rapprochés, réessayez dans une heure"
+                in 500..599 -> "serveur de support indisponible"
+                else -> "serveur HTTP $code"
+            }
+            LogShipResult(file = file, error = reason)
         } catch (error: Throwable) {
-            LogShipResult(file = file, error = error.message ?: "envoi impossible")
+            LogShipResult(file = file, error = error.message ?: "envoi impossible (pas de connexion ?)")
         } finally {
             connection?.disconnect()
         }
     }
 
     /**
-     * Envoie les journaux **sans aucune clé, sans compte** (demande du 15/11/2026).
-     *
-     * L'utilisateur ne doit rien avoir à créer : le fichier est déposé sur un service de collage
-     * public qui rend une adresse, et cette adresse est affichée (elle est aussi copiée dans le
-     * presse-papier par l'écran). Deux services sont essayés l'un après l'autre : le premier
-     * suffit dans la très grande majorité des cas, le second prend le relais s'il tombe.
-     *
-     * L'adresse est aléatoire et le dépôt expire : ce n'est pas un hébergement, c'est un
-     * transport. Le contenu reste celui des journaux, déjà annoncés par le mode debug.
+     * Identifiant aléatoire de cette installation, tiré une fois pour toutes. Il ne dit rien de
+     * la personne : il permet seulement au serveur de regrouper les envois d'un même téléphone.
      */
-    suspend fun shipToPasteBin(): LogShipResult = withContext(Dispatchers.IO) {
-        val file = collect()
-        val content = file.readText().take(MAX_CONTENT)
-        val failures = mutableListOf<String>()
-
-        // 1. dpaste : accepte de gros contenus, rend l'adresse en clair, expire en 7 jours.
-        runCatching { postForm(DPASTE_URL, "content" to content, "expiry_days" to "7") }
-            .onSuccess { url -> return@withContext LogShipResult(gistUrl = url, file = file) }
-            .onFailure { failures.add("dpaste : ${it.message}") }
-
-        // 2. paste.rs : corps brut, plus petit mais sans paramètre à encoder.
-        runCatching { postRaw(PASTE_RS_URL, content) }
-            .onSuccess { url -> return@withContext LogShipResult(gistUrl = url, file = file) }
-            .onFailure { failures.add("paste.rs : ${it.message}") }
-
-        LogShipResult(file = file, error = failures.joinToString(" ; "))
+    private fun installId(): String {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.getString(KEY_INSTALL_ID, null)?.let { return it }
+        val id = UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_INSTALL_ID, id).apply()
+        return id
     }
 
-    /** POST de formulaire ; rend le texte de la réponse (l'adresse du dépôt). */
-    private fun postForm(url: String, vararg fields: Pair<String, String>): String {
-        val body = fields.joinToString("&") { (name, value) ->
-            "${java.net.URLEncoder.encode(name, "UTF-8")}=${java.net.URLEncoder.encode(value, "UTF-8")}"
-        }
-        return post(
-            url = url,
-            body = body,
-            contentType = "application/x-www-form-urlencoded; charset=utf-8",
-        )
-    }
-
-    /** POST d'un corps texte brut ; rend le texte de la réponse. */
-    private fun postRaw(url: String, body: String): String = post(
-        url = url,
-        body = body,
-        contentType = "text/plain; charset=utf-8",
-    )
-
-    private fun post(url: String, body: String, contentType: String): String {
-        var connection: HttpURLConnection? = null
-        try {
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                doOutput = true
-                connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
-                setRequestProperty("User-Agent", "Miam-Miam-Logs")
-                setRequestProperty("Content-Type", contentType)
-            }
-            connection = conn
-            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            val code = conn.responseCode
-            if (code !in 200..299) throw IllegalStateException("serveur HTTP $code")
-            val answer = conn.inputStream.bufferedReader().use { it.readText() }.trim()
-            // La réponse d'un service de collage EST l'adresse.
-            val link = answer.lineSequence().firstOrNull { it.startsWith("http") } ?: answer
-            if (!link.startsWith("http")) throw IllegalStateException("réponse inattendue")
-            return link
-        } finally {
-            connection?.disconnect()
-        }
-    }
+    private fun deviceLabel(): String =
+        "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})"
 
     /** Ouvre la feuille de partage d'Android sur le fichier de journaux. */
     suspend fun share(file: File) = withContext(Dispatchers.Main) {
@@ -203,7 +151,7 @@ class LogShipper @Inject constructor(
         appendLine("Miam-Miam — journaux")
         appendLine("Date : ${Instant.now()}")
         appendLine("Version : ${versionName()}")
-        appendLine("Appareil : ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})")
+        appendLine("Appareil : ${deviceLabel()}")
         appendLine("Application : ${context.packageName}")
         appendLine("----- journaux -----")
     }
@@ -225,9 +173,14 @@ class LogShipper @Inject constructor(
     }.getOrDefault("(journaux illisibles)")
 
     private companion object {
-        const val GISTS_URL = "https://api.github.com/gists"
-        const val DPASTE_URL = "https://dpaste.com/api/v2/"
-        const val PASTE_RS_URL = "https://paste.rs"
+        /** Point d'entrée Odoo de Geeks4Good (module g4g, contrat du 16/11/2026). */
+        const val ODOO_LOGS_URL = "https://www.geeks4good.fr/g4g/miam-miam/logs"
+
+        /** Clé d'application PUBLIQUE (anti-bruit, pas un secret) fournie par le serveur. */
+        const val APP_KEY = "mm-Ao0tpL_g2FryE0hKmStyiuI9JAfOONvW"
+        const val PREFS = "miam_logs"
+        const val KEY_INSTALL_ID = "install_id"
+        const val MAX_COMMENT = 1_000
         const val LOGS_DIR = "logs"
         const val MAX_LINES = "3000"
         const val MAX_CONTENT = 700_000
