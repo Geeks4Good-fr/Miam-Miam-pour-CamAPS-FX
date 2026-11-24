@@ -38,4 +38,24 @@ object TreatmentPayload {
     }
 
     fun toJson(meal: MealConfirmation): String = build(meal).toString()
+
+    /** Type d'évènement d'une note de repas : affichée sur la courbe, sans glucides. */
+    const val NOTE_EVENT_TYPE = "Note"
+
+    /** Longueur maximale d'une note : lisible dans l'infobulle de Nightscout. */
+    const val NOTE_MAX_LENGTH = 1_000
+
+    /**
+     * Note de repas (mode Gemini direct, 23/11/2026) : la description, **sans champ `carbs`**.
+     *
+     * Les glucides saisis dans CamAPS arrivent déjà dans Nightscout par la synchro Glooko
+     * (`docs/CAMAPS-REPAS.md` § 6) ; un traitement « Carbs » ici les compterait deux fois. Le total
+     * annoncé figure donc dans le texte de la note, jamais comme valeur.
+     */
+    fun note(notes: String, createdAt: Instant): JSONObject = JSONObject().apply {
+        put("eventType", NOTE_EVENT_TYPE)
+        put("notes", notes.take(NOTE_MAX_LENGTH))
+        put("created_at", CREATED_AT_FORMAT.format(createdAt))
+        put("enteredBy", ENTERED_BY)
+    }
 }

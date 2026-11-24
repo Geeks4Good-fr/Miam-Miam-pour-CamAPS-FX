@@ -6,7 +6,7 @@
     <string name="home_announce">Annoncer un repas</string>
     <string name="home_announce_hint">Saisie manuelle : un aliment à la fois</string>
     <string name="home_assistant">Décrire mon repas à voix haute</string>
-    <string name="home_assistant_hint">L\'IA estime les glucides, vous vérifiez, puis on les écrit dans CamAPS FX</string>
+    <string name="home_assistant_hint">L\'IA estime les glucides et vous vérifiez. Sans Liberty, ils sont ensuite écrits dans CamAPS FX.</string>
     <string name="home_history">Historique des repas</string>
     <string name="home_settings">Réglages</string>
     <string name="home_warning_title">À lire avant utilisation</string>
@@ -78,6 +78,8 @@
     <string name="search_type_hypo">hypo</string>
     <string name="search_send">Lancer l\'automatisation (CamAPS FX)</string>
     <string name="search_sending">Envoi en cours…</string>
+    <string name="search_send_liberty">Noter le repas (Liberty : rien dans CamAPS)</string>
+    <string name="search_liberty_value">Total : %1$d g — mode Liberty, à ne pas annoncer dans CamAPS FX</string>
     <string name="search_favourite_name">Nom du favori</string>
     <string name="search_favourite_save">Enregistrer en favori</string>
 </resources>

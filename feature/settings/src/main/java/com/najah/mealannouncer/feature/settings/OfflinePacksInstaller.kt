@@ -17,6 +17,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
+import com.najah.mealannouncer.feature.assistant.portions.PortionBank
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.coroutineContext
@@ -83,6 +85,18 @@ enum class OfflinePack(
         uncompressedBytes = 94_680_432L,
         sha256 = "f3757ac083e6834b130b8b497837864e3f6f0b3329fe6d72cd40266b88bee9e7",
         required = false,
+    ),
+    PORTIONS(
+        id = "portions-modele",
+        title = "Portions en images (862 aliments, 2 195 photos)",
+        description = "Les photos de portions pesées (assiettes, bols) et les valeurs Ciqual des aliments sans marque.",
+        archiveName = "modele-portions.zip",
+        targetSubdir = PortionBank.DOWNLOADED_DIR,
+        // Archive publiée le 23/11/2026 (crédits CC BY : Geeks4Good, Patrick Blan, Alexandre Roschewitz).
+        zipBytes = 65_843_851L,
+        uncompressedBytes = 67_192_795L,
+        sha256 = "edb10860b4a9b0620961c761adad244320dc17ce7c2028484e207c3e9230fc51",
+        required = true,
     );
 
     fun downloadUrls(): List<String> = listOf(
@@ -118,7 +132,11 @@ class OfflinePacksInstaller @Inject constructor(
     @ApplicationContext private val context: Context,
     private val offDatabase: OffDatabase,
     private val voskStorage: VoskModelStorage,
+    private val portionBank: PortionBank,
 ) {
+
+    /** Un seul téléchargement à la fois, qu'il vienne de l'assistant d'installation ou de la tâche de fond. */
+    private val installLock = kotlinx.coroutines.sync.Mutex()
 
     fun rootFilesDir(): File = context.getExternalFilesDir(null) ?: context.filesDir
 
@@ -143,6 +161,7 @@ class OfflinePacksInstaller @Inject constructor(
             val hasOnnx = dir.listFiles()?.any { it.isFile && it.name.endsWith(".onnx") && it.length() > 0L } == true
             hasOnnx && File(dir, "tokens.txt").isFile && File(dir, "espeak-ng-data").isDirectory
         }
+        OfflinePack.PORTIONS -> File(targetDir(pack), "portions.json").let { it.isFile && it.length() > 0L }
     }
 
     /** Vrai si les trois paquets principaux (Kroko, Open Food Facts, Vosk) sont installés. */
@@ -154,6 +173,14 @@ class OfflinePacksInstaller @Inject constructor(
      * dans son dossier cible.
      */
     suspend fun downloadAndInstall(
+        pack: OfflinePack,
+        onProgress: (PackInstallProgress) -> Unit,
+    ): Result<Unit> = installLock.withLock {
+        // L'autre chemin (tâche de fond ou assistant) a pu l'installer pendant l'attente du verrou.
+        if (isInstalled(pack)) Result.success(Unit) else downloadAndInstallUnlocked(pack, onProgress)
+    }
+
+    private suspend fun downloadAndInstallUnlocked(
         pack: OfflinePack,
         onProgress: (PackInstallProgress) -> Unit,
     ): Result<Unit> = withContext(Dispatchers.IO) {
@@ -175,6 +202,9 @@ class OfflinePacksInstaller @Inject constructor(
             tempZip.delete()
             if (pack == OfflinePack.OFF_BASE) {
                 offDatabase.reload()
+            }
+            if (pack == OfflinePack.PORTIONS) {
+                portionBank.reload()
             }
             if (!isInstalled(pack)) {
                 return@withContext Result.failure(
@@ -223,6 +253,9 @@ class OfflinePacksInstaller @Inject constructor(
             tempZip.delete()
             if (pack == OfflinePack.OFF_BASE) {
                 offDatabase.reload()
+            }
+            if (pack == OfflinePack.PORTIONS) {
+                portionBank.reload()
             }
             if (!isInstalled(pack)) {
                 return@withContext Result.failure(

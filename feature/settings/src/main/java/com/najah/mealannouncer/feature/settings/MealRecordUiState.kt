@@ -15,6 +15,9 @@ data class MealRecordUiState(
     val glookoCarnet: Boolean = true,
     val nightscoutNote: Boolean = true,
     val attachPhoto: Boolean = true,
+    val geminiDirect: Boolean = true,
+    val liberty: Boolean = false,
+    val libertyAnswered: Boolean = false,
     val camapsAccessibilityRunning: Boolean = false,
 ) {
     fun toConfig(): MealRecordConfig = MealRecordConfig(
@@ -23,6 +26,9 @@ data class MealRecordUiState(
         glookoCarnet = glookoCarnet,
         nightscoutNote = nightscoutNote,
         attachPhoto = attachPhoto,
+        geminiDirect = geminiDirect,
+        liberty = liberty,
+        libertyAnswered = libertyAnswered,
     )
 }
 
@@ -34,4 +40,6 @@ data class MealRecordActions(
     val onNightscoutNoteChange: (Boolean) -> Unit,
     val onAttachPhotoChange: (Boolean) -> Unit,
     val onOpenAccessibility: () -> Unit,
+    val onGeminiDirectChange: (Boolean) -> Unit = {},
+    val onLibertyChange: (Boolean) -> Unit = {},
 )

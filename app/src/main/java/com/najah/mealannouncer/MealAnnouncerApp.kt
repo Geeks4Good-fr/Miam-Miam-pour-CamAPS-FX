@@ -40,6 +40,9 @@ class MealAnnouncerApp : Application(), Configuration.Provider {
     @Inject
     lateinit var homeVoiceSettings: HomeVoiceSettings
 
+    @Inject
+    lateinit var offlinePacks: com.najah.mealannouncer.feature.settings.OfflinePacksInstaller
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -59,6 +62,13 @@ class MealAnnouncerApp : Application(), Configuration.Provider {
             if (homeVoiceSettings.config.value.enabled) HomeLinkService.sync(context, enabled = true)
         }
         applicationScope.launch {
+            // Données hors ligne (base Open Food Facts, portions en images, dictée, mot-clé) :
+            // installées toutes seules sur Wi-Fi, sans geste de l'utilisateur (23/11/2026).
+            try {
+                com.najah.mealannouncer.feature.settings.OfflinePacksWorker.enqueueIfNeeded(this@MealAnnouncerApp, offlinePacks)
+            } catch (error: Exception) {
+                Log.w(TAG, "Installation automatique des paquets non programmée", error)
+            }
             try {
                 val inserted = seeder.seedIfEmpty()
                 if (inserted > 0) {

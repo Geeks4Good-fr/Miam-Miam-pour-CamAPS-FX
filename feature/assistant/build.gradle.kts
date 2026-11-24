@@ -35,6 +35,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":data:openfoodfacts"))
     implementation(project(":data:mistral"))
+    implementation(project(":data:nightscout"))
     // L'annonce à voix haute du total réutilise la voix déjà réglée (Voxtral ou Android).
     implementation(project(":feature:voice"))
     // L'écriture dans CamAPS FX passe par la porte du module d'intégration.

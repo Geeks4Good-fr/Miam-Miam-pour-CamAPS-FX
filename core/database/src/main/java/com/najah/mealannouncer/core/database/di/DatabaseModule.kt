@@ -6,6 +6,7 @@ import com.najah.mealannouncer.core.database.MealAnnouncerDatabase
 import com.najah.mealannouncer.core.database.dao.AutomationLogDao
 import com.najah.mealannouncer.core.database.dao.FavoriteMealDao
 import com.najah.mealannouncer.core.database.dao.FoodProductDao
+import com.najah.mealannouncer.core.database.dao.GeminiMealLogDao
 import com.najah.mealannouncer.core.database.dao.MealItemDao
 import com.najah.mealannouncer.core.database.dao.MealLogDao
 import dagger.Module
@@ -34,7 +35,7 @@ object DatabaseModule {
             MealAnnouncerDatabase::class.java,
             MealAnnouncerDatabase.NAME,
         )
-            .addMigrations(MealAnnouncerDatabase.MIGRATION_1_2)
+            .addMigrations(MealAnnouncerDatabase.MIGRATION_1_2, MealAnnouncerDatabase.MIGRATION_2_3)
             .build()
 
     @Provides
@@ -56,4 +57,8 @@ object DatabaseModule {
     @Provides
     fun provideFavoriteMealDao(database: MealAnnouncerDatabase): FavoriteMealDao =
         database.favoriteMealDao()
+
+    @Provides
+    fun provideGeminiMealLogDao(database: MealAnnouncerDatabase): GeminiMealLogDao =
+        database.geminiMealLogDao()
 }

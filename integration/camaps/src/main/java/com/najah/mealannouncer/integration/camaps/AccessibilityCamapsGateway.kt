@@ -96,7 +96,20 @@ class AccessibilityCamapsGateway @Inject constructor(
             return CamapsWriteResult.Failed("Le champ des glucides n'a pas pu être rempli.")
         }
         delay(SETTLE_MS)
-        if (!CamapsUi.clickExact(service, fill.mealTypeLabel)) {
+        // Plusieurs essais, l'écran relu à chaque fois : juste après la saisie des glucides, le
+        // clavier et la remise en page de CamAPS peuvent encore cacher les types (échec réel du
+        // 23/11/2026 à 18:36, une seule tentative à 0,6 s).
+        val typeDeadline = System.currentTimeMillis() + TYPE_RETRY_MS
+        var typed = CamapsUi.clickExact(service, fill.mealTypeLabel)
+        while (!typed && System.currentTimeMillis() < typeDeadline) {
+            delay(TYPE_POLL_MS)
+            typed = CamapsUi.clickExact(service, fill.mealTypeLabel)
+        }
+        if (!typed) {
+            // Pour comprendre un échec sur l'appareil : les libellés visibles, jamais un chiffre.
+            val labels = CamapsUi.snapshot(service).nodes.map { it.label() }
+                .filter { it.isNotBlank() && it.none(Char::isDigit) }.distinct().take(30)
+            android.util.Log.w(LOG_TAG, "Type « ${fill.mealTypeLabel} » non coché ; libellés visibles : $labels")
             return CamapsWriteResult.Failed("Le type « ${fill.mealTypeLabel} » n'a pas pu être coché.")
         }
         if (fill.pressContinue) {
@@ -205,6 +218,10 @@ class AccessibilityCamapsGateway @Inject constructor(
         /** Atteindre l'écran de repas peut demander d'ouvrir le tiroir puis d'attendre l'écran. */
         const val REACH_TIMEOUT_MS = 12_000L
         const val SETTLE_MS = 600L
+
+        /** Temps laissé pour cocher le type de repas après la saisie des glucides, et pas entre deux essais. */
+        const val TYPE_RETRY_MS = 4_000L
+        const val TYPE_POLL_MS = 400L
         const val POLL_MS = 250L
 
         /** Description du bouton de menu quand le tiroir est fermé (invite à l'ouvrir). */

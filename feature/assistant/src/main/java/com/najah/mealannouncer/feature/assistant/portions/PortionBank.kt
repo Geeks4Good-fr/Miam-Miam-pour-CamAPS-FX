@@ -117,10 +117,16 @@ class PortionBank @Inject constructor(
         val target = File(root, "user/${System.currentTimeMillis()}")
         target.mkdirs()
         return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            // Lecture au fil de l'eau : un paquet de 56 Mo chargé d'un coup en mémoire pourrait pousser
+            // Android à tuer d'autres applis — CamAPS compris (incident du 09/11/2026).
+            val opened = context.contentResolver.openInputStream(uri)
                 ?: return ImportReport(0, listOf("fichier illisible"), emptyList())
-            val isZip = bytes.size > 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()
-            if (isZip) unzip(bytes.inputStream(), target) else File(target, PACK_JSON).writeBytes(bytes)
+            java.io.BufferedInputStream(opened).use { input ->
+                input.mark(4)
+                val isZip = input.read() == 'P'.code && input.read() == 'K'.code
+                input.reset()
+                if (isZip) unzip(input, target) else File(target, PACK_JSON).outputStream().use { input.copyTo(it) }
+            }
             val json = File(target, PACK_JSON).takeIf { it.isFile }?.readText()
                 ?: return ImportReport(0, listOf("portions.json absent du paquet"), emptyList()).also { target.deleteRecursively() }
             val reading = PortionPack.parse(json) { File(target, it).isFile }
@@ -170,6 +176,15 @@ class PortionBank @Inject constructor(
         return chosen.size
     }
 
+    /** Relit la banque au prochain usage : après l'installation automatique de la grande banque. */
+    @Synchronized
+    fun reload() {
+        entries = null
+    }
+
+    /** Le dossier de la grande banque téléchargée (dossier externe de l'appli, comme les autres paquets). */
+    private fun downloadedDir(): File = File(context.getExternalFilesDir(null) ?: context.filesDir, DOWNLOADED_DIR)
+
     /** Efface tous les aliments importés ; la base embarquée reste. */
     @Synchronized
     fun clearImported() {
@@ -182,6 +197,11 @@ class PortionBank @Inject constructor(
         entries?.let { return it }
         val loaded = LinkedHashMap<String, Entry>()
         baseDir()?.let { dir -> read(dir).forEach { loaded[it.id] = Entry(it, dir, fromUser = false) } }
+        // La grande banque téléchargée à l'installation (paquet hors ligne « portions-modele ») :
+        // elle complète la base embarquée, et les imports de l'utilisateur passent devant elle.
+        downloadedDir().takeIf { File(it, PACK_JSON).isFile }?.let { dir ->
+            read(dir).forEach { loaded[it.id] = Entry(it, dir, fromUser = false) }
+        }
         File(root, "user").listFiles()?.filter { it.isDirectory }?.sortedBy { it.name }?.forEach { dir ->
             read(dir).forEach { loaded[it.id] = Entry(it, dir, fromUser = true) }
         }
@@ -226,6 +246,9 @@ class PortionBank @Inject constructor(
 
     companion object {
         private const val TAG = "MealAnnouncerPortions"
+
+        /** Sous-dossier de la grande banque téléchargée (paquet hors ligne `modele-portions.zip`). */
+        const val DOWNLOADED_DIR = "portions-modele"
         private const val PACK_JSON = "portions.json"
         private const val BASE_ASSET = "portions/base.zip"
         private const val PREFIX = "bank:"

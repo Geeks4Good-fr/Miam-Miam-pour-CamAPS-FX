@@ -35,7 +35,34 @@ data class MealRecordConfig(
 
     /** Sous le suivi : joindre la photo du plat au Carnet Glooko quand l'assistant en a une. */
     val attachPhoto: Boolean = true,
+
+    /**
+     * Mode « Gemini direct » (23/11/2026) : les photos et les phrases partent telles quelles à
+     * Gemini, comme sur gemini.google.com, et l'appli reprend son total. Activé par défaut ;
+     * désactivé, l'ancienne chaîne (lignes, Open Food Facts, relecture) reprend la main.
+     */
+    val geminiDirect: Boolean = true,
+
+    /**
+     * L'utilisateur se sert de la fonction **Liberty** de CamAPS FX (décision de l'équipe médicale
+     * du 24/11/2026). Liberty active : l'automate n'annonce **plus jamais** les glucides dans
+     * « Ajouter un repas » de CamAPS — ni saisie automatique, ni ouverture de l'écran pour une saisie
+     * à la main. Tout le reste est conservé : journal, Carnet Glooko, Nightscout.
+     */
+    val liberty: Boolean = false,
+
+    /**
+     * La question « Utilisez-vous Liberty ? » a reçu une réponse (assistant d'installation, réglage
+     * ou restauration). Tant qu'elle n'en a pas, l'assistant d'installation se rouvre au lancement.
+     */
+    val libertyAnswered: Boolean = false,
 ) {
+    /** L'automate peut-il toucher à « Ajouter un repas » de CamAPS ? Jamais sous Liberty. */
+    fun announcesToCamaps(): Boolean = !liberty
+
+    /** L'insertion automatique dans CamAPS est-elle réellement en service ? */
+    fun camapsAutoActive(): Boolean = camapsAutoInsert && !liberty
+
     /** Le Carnet Glooko est-il écrit pour ce repas ? */
     fun writesGlookoCarnet(): Boolean = suiviDiabetologue && glookoCarnet
 

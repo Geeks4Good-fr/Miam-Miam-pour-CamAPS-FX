@@ -93,6 +93,17 @@ class SettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(initialState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
 
+    init {
+        // Les réglages du repas changent aussi ailleurs (assistant d'installation pour Liberty,
+        // restauration d'une sauvegarde) : l'écran les relit, sinon un geste ici réécrirait une
+        // valeur périmée — Liberty compris.
+        viewModelScope.launch {
+            mealRecordStore.config.collect {
+                _state.update { current -> current.copy(mealRecord = mealRecordState(current.mealRecord)) }
+            }
+        }
+    }
+
     private fun initialState(): SettingsUiState {
         val config = store.config.value
         return SettingsUiState(
@@ -282,6 +293,9 @@ class SettingsViewModel @Inject constructor(
             glookoCarnet = config.glookoCarnet,
             nightscoutNote = config.nightscoutNote,
             attachPhoto = config.attachPhoto,
+            geminiDirect = config.geminiDirect,
+            liberty = config.liberty,
+            libertyAnswered = config.libertyAnswered,
             camapsAccessibilityRunning = CamapsAccessibilityService.isRunning,
         )
     }
@@ -289,6 +303,14 @@ class SettingsViewModel @Inject constructor(
     private fun persistMealRecord(candidate: MealRecordUiState) {
         mealRecordStore.save(candidate.toConfig())
         _state.update { it.copy(mealRecord = mealRecordState(candidate)) }
+    }
+
+    /**
+     * Mode Liberty (équipe médicale, 24/11/2026). Toucher l'interrupteur vaut réponse à la question
+     * de l'assistant d'installation.
+     */
+    fun onLibertyChange(value: Boolean) {
+        persistMealRecord(_state.value.mealRecord.copy(liberty = value, libertyAnswered = true))
     }
 
     fun onCamapsAutoInsertChange(value: Boolean) {
@@ -309,6 +331,10 @@ class SettingsViewModel @Inject constructor(
 
     fun onAttachPhotoChange(value: Boolean) {
         persistMealRecord(_state.value.mealRecord.copy(attachPhoto = value))
+    }
+
+    fun onGeminiDirectChange(value: Boolean) {
+        persistMealRecord(_state.value.mealRecord.copy(geminiDirect = value))
     }
 
     // ---- Import Glooko ---------------------------------------------------------

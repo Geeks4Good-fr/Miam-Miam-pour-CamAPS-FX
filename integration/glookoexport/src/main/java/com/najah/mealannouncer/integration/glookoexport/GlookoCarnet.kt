@@ -314,8 +314,12 @@ class GlookoCarnet @Inject constructor(
 
         const val LAUNCH_TIMEOUT_MS = 15_000L
         const val STEP_TIMEOUT_MS = 8_000L
-        /** Atteindre l'écran de saisie peut demander de dépasser le splash puis d'attendre. */
-        const val REACH_TIMEOUT_MS = 12_000L
+        /**
+         * Atteindre l'écran de saisie peut demander de dépasser le splash puis d'attendre. 12 s ne
+         * suffisaient pas le 23/11/2026 : Glooko est resté plus de 13 s sur son logo au démarrage à
+         * froid (Wi-Fi d'hôpital), puis s'est ouvert normalement.
+         */
+        const val REACH_TIMEOUT_MS = 30_000L
         const val SETTLE_MS = 600L
         const val POLL_MS = 250L
         const val MAX_DEPTH = 40

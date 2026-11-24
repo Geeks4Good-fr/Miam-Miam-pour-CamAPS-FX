@@ -241,6 +241,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Photos choisies au plus d'un coup : au-delà, l'envoi à Gemini deviendrait lourd et lent. */
+private const val MAX_PICKED_PHOTOS = 6
+
 private const val ROUTE_HOME = "home"
 private const val ROUTE_MANUAL = "manual"
 private const val ROUTE_ASSISTANT = "assistant"
@@ -389,14 +392,12 @@ private fun AppRoot(
                             assistantViewModel.onPhotoCancelled(target)
                         }
                     }
+                    // Plusieurs photos d'un coup (demande du 23/11/2026) : en mode Gemini, elles partent
+                    // ensemble dans un seul message.
                     val pickPicture = rememberLauncherForActivityResult(
-                        ActivityResultContracts.PickVisualMedia(),
+                        ActivityResultContracts.PickMultipleVisualMedia(MAX_PICKED_PHOTOS),
                     ) { picked ->
-                        if (picked != null) {
-                            assistantViewModel.onPhotoPicked(picked)
-                        } else {
-                            assistantViewModel.onPhotoCancelled(null)
-                        }
+                        assistantViewModel.onPhotosPicked(picked)
                     }
                     val leave = {
                         assistantViewModel.stopRecording()
@@ -431,6 +432,7 @@ private fun AppRoot(
                         onStopConversation = assistantViewModel::stopConversation,
                         onRejectProduct = assistantViewModel::rejectProduct,
                         onTakePhoto = {
+                            assistantViewModel.onCameraOpening()
                             val target = assistantViewModel.newPhotoTarget()
                             photoTarget = target
                             try {
@@ -460,6 +462,9 @@ private fun AppRoot(
                                 ),
                             )
                         },
+                        onSendPhotoBatch = assistantViewModel::sendPhotoBatch,
+                        onCancelPhotoBatch = assistantViewModel::cancelPhotoBatch,
+                        onDirectPortionPick = assistantViewModel::pickDirectPortion,
                         onConfirmPhoto = assistantViewModel::confirmPhoto,
                         onDiscardPhoto = assistantViewModel::discardPhoto,
                         onReset = assistantViewModel::reset,
@@ -571,6 +576,7 @@ private fun AppRoot(
                         onOpenAccessibility = setupWizardViewModel::openAccessibilitySettings,
                         onRefresh = setupWizardViewModel::refresh,
                         onFinish = finishSetup,
+                        onLibertyAnswer = setupWizardViewModel::onLibertyAnswer,
                         modifier = Modifier.padding(innerPadding),
                     )
                 }
@@ -647,6 +653,8 @@ private fun AppRoot(
                             onNightscoutNoteChange = settingsViewModel::onNightscoutNoteChange,
                             onAttachPhotoChange = settingsViewModel::onAttachPhotoChange,
                             onOpenAccessibility = settingsViewModel::openAccessibilitySettings,
+                            onGeminiDirectChange = settingsViewModel::onGeminiDirectChange,
+                            onLibertyChange = settingsViewModel::onLibertyChange,
                         ),
                         homeVoice = homeVoiceState,
                         homeVoiceActions = HomeVoiceActions(
@@ -749,6 +757,7 @@ private fun AppRoot(
                         onDeleteFavourite = searchViewModel::deleteFavourite,
                         onDismissNotice = searchViewModel::dismissNotice,
                         modifier = Modifier.padding(innerPadding),
+                        imageUrlFor = searchViewModel::imageUrlFor,
                     )
                 }
 
@@ -757,6 +766,8 @@ private fun AppRoot(
                     val summary by journalViewModel.summary.collectAsStateWithLifecycle()
                     val meals by historyViewModel.entries.collectAsStateWithLifecycle()
                     val journalNotice by journalViewModel.notice.collectAsStateWithLifecycle()
+                    val geminiMeals by journalViewModel.geminiMeals.collectAsStateWithLifecycle()
+                    val geminiSending by journalViewModel.sending.collectAsStateWithLifecycle()
                     val mealNotice by historyViewModel.notice.collectAsStateWithLifecycle()
                     val notice = journalNotice ?: mealNotice
                     BackHandler { route = ROUTE_HOME }
@@ -776,6 +787,11 @@ private fun AppRoot(
                             historyViewModel.dismissNotice()
                         },
                         modifier = Modifier.padding(innerPadding),
+                        geminiMeals = geminiMeals,
+                        onDeleteGeminiMeal = journalViewModel::deleteGeminiMeal,
+                        onNoteGlooko = journalViewModel::noteInGlooko,
+                        onSendNightscout = journalViewModel::sendToNightscout,
+                        geminiSending = geminiSending,
                     )
                 }
 

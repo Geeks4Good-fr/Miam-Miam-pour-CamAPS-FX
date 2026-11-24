@@ -78,6 +78,8 @@ class ConfigBackup @Inject constructor(
                 put("glookoCarnet", meal.glookoCarnet)
                 put("nightscoutNote", meal.nightscoutNote)
                 put("attachPhoto", meal.attachPhoto)
+                put("geminiDirect", meal.geminiDirect)
+                if (meal.libertyAnswered) put("liberty", meal.liberty)
             })
             put("voice", JSONObject().apply {
                 put("engine", voiceConfig.engine.name)
@@ -155,6 +157,11 @@ class ConfigBackup @Inject constructor(
                     glookoCarnet = section.optBoolean("glookoCarnet", current.glookoCarnet),
                     nightscoutNote = section.optBoolean("nightscoutNote", current.nightscoutNote),
                     attachPhoto = section.optBoolean("attachPhoto", current.attachPhoto),
+                    geminiDirect = section.optBoolean("geminiDirect", current.geminiDirect),
+                    // Liberty n'est repris que si la sauvegarde l'a tranché : une ancienne
+                    // sauvegarde ne doit pas répondre à la question à la place de l'utilisateur.
+                    liberty = if (section.has("liberty")) section.optBoolean("liberty") else current.liberty,
+                    libertyAnswered = current.libertyAnswered || section.has("liberty"),
                 ),
             )
             applied++

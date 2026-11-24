@@ -24,11 +24,25 @@ class DispatchingCamapsGateway @Inject constructor(
     private fun chosen(): CamapsMealGateway =
         if (settings.config.value.camapsAutoInsert) auto else manual
 
-    override suspend fun writeCarbs(carbs: Int): CamapsWriteResult = chosen().writeCarbs(carbs)
+    /**
+     * Mode Liberty (équipe médicale, 24/11/2026) : **rien** ne part vers « Ajouter un repas », ni
+     * saisie ni ouverture de l'écran. Les appelants testent déjà le réglage ; ce verrou-ci est le
+     * filet si un chemin l'oubliait.
+     */
+    private fun libertyLock(): CamapsWriteResult? =
+        if (settings.config.value.liberty) CamapsWriteResult.Failed(LIBERTY_MESSAGE) else null
+
+    override suspend fun writeCarbs(carbs: Int): CamapsWriteResult =
+        libertyLock() ?: chosen().writeCarbs(carbs)
 
     override suspend fun announceMeal(request: CamapsMealRequest): CamapsWriteResult =
-        chosen().announceMeal(request)
+        libertyLock() ?: chosen().announceMeal(request)
 
     override suspend fun awaitMealOutcome(timeoutMs: Long): CamapsMealOutcome =
-        chosen().awaitMealOutcome(timeoutMs)
+        if (settings.config.value.liberty) CamapsMealOutcome.UNKNOWN else chosen().awaitMealOutcome(timeoutMs)
+
+    companion object {
+        const val LIBERTY_MESSAGE =
+            "Mode Liberty : Miam-Miam n'annonce aucun repas dans CamAPS FX (voir Réglages → Repas & CamAPS)."
+    }
 }

@@ -49,19 +49,55 @@ fun MealRecordSettingsSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // Liberty en tête : c'est lui qui décide si CamAPS fait partie de la séquence.
             Spacer(Modifier.height(12.dp))
             MealSwitchRow(
-                label = stringResource(R.string.settings_meal_camaps_auto),
-                checked = state.camapsAutoInsert,
-                onCheckedChange = actions.onCamapsAutoChange,
+                label = stringResource(R.string.settings_meal_liberty),
+                checked = state.liberty,
+                onCheckedChange = actions.onLibertyChange,
             )
             Text(
-                text = stringResource(R.string.settings_meal_camaps_auto_help),
+                text = stringResource(
+                    if (state.liberty) R.string.settings_meal_liberty_on else R.string.settings_meal_liberty_off,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (state.liberty) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.settings_meal_liberty_doctor),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Spacer(Modifier.height(12.dp))
+            MealSwitchRow(
+                label = stringResource(R.string.settings_meal_gemini_direct),
+                checked = state.geminiDirect,
+                onCheckedChange = actions.onGeminiDirectChange,
+            )
+            Text(
+                text = stringResource(R.string.settings_meal_gemini_direct_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            // Sous Liberty, rien ne va dans CamAPS : l'insertion automatique n'a plus d'objet et
+            // n'est pas proposée (le réglage est gardé tel quel pour le jour où Liberty est coupé).
+            if (!state.liberty) {
+                Spacer(Modifier.height(12.dp))
+                MealSwitchRow(
+                    label = stringResource(R.string.settings_meal_camaps_auto),
+                    checked = state.camapsAutoInsert,
+                    onCheckedChange = actions.onCamapsAutoChange,
+                )
+                Text(
+                    text = stringResource(R.string.settings_meal_camaps_auto_help),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             // Le constat, pas une promesse : sans le service allumé, la case ne fait rien.
-            if (state.camapsAutoInsert) {
+            if (state.camapsAutoInsert && !state.liberty) {
                 Text(
                     text = stringResource(
                         if (state.camapsAccessibilityRunning) {

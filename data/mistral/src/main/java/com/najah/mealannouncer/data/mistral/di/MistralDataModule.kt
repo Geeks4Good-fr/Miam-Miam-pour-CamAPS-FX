@@ -1,5 +1,7 @@
 package com.najah.mealannouncer.data.mistral.di
 
+import com.najah.mealannouncer.data.mistral.GeminiDirectChat
+import com.najah.mealannouncer.data.mistral.HttpGeminiDirectChat
 import com.najah.mealannouncer.data.mistral.HttpMistralChat
 import com.najah.mealannouncer.data.mistral.HttpMistralTranscriber
 import com.najah.mealannouncer.data.mistral.HttpMistralWebSearch
@@ -58,4 +60,8 @@ abstract class MistralDataModule {
     @Binds
     @Singleton
     abstract fun bindReceiptReader(impl: HttpReceiptReader): ReceiptReader
+
+    @Binds
+    @Singleton
+    abstract fun bindGeminiDirectChat(impl: HttpGeminiDirectChat): GeminiDirectChat
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.najah.mealannouncer.core.model.AutomationEntry
 import com.najah.mealannouncer.core.model.AutomationOutcome
 import com.najah.mealannouncer.core.model.AutomationSummary
+import com.najah.mealannouncer.core.model.GeminiMealLog
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -66,6 +67,11 @@ fun JournalScreen(
     onFavouriteMeal: (HistoryEntry) -> Unit,
     onDismissNotice: () -> Unit,
     modifier: Modifier = Modifier,
+    geminiMeals: List<GeminiMealLog> = emptyList(),
+    onDeleteGeminiMeal: (String) -> Unit = {},
+    onNoteGlooko: (GeminiMealLog) -> Unit = {},
+    onSendNightscout: (GeminiMealLog) -> Unit = {},
+    geminiSending: Boolean = false,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(TAB_AUTOMATIONS) }
     var pendingClear by remember { mutableStateOf(false) }
@@ -93,6 +99,11 @@ fun JournalScreen(
                 onClick = { tab = TAB_MEALS },
                 text = { Text(stringResource(R.string.journal_tab_meals)) },
             )
+            Tab(
+                selected = tab == TAB_GEMINI,
+                onClick = { tab = TAB_GEMINI },
+                text = { Text(stringResource(R.string.journal_tab_gemini)) },
+            )
         }
 
         if (notice != null) {
@@ -115,6 +126,14 @@ fun JournalScreen(
         }
 
         when (tab) {
+            TAB_GEMINI -> GeminiJournalTab(
+                meals = geminiMeals,
+                onDelete = onDeleteGeminiMeal,
+                onNoteGlooko = onNoteGlooko,
+                onSendNightscout = onSendNightscout,
+                sending = geminiSending,
+            )
+
             TAB_MEALS -> HistoryScreen(
                 entries = meals,
                 onBack = onBack,
@@ -236,6 +255,18 @@ private fun SummaryCard(summary: AutomationSummary, onClear: () -> Unit) {
 
 @Composable
 private fun AutomationCard(entry: AutomationEntry, onDelete: () -> Unit, onFavourite: () -> Unit) {
+    var confirmDelete by rememberSaveable(entry.id) { mutableStateOf(false) }
+    if (confirmDelete) {
+        ConfirmDeleteDialog(
+            title = stringResource(R.string.journal_entry_delete_title),
+            message = stringResource(R.string.journal_entry_delete_message),
+            onConfirm = {
+                confirmDelete = false
+                onDelete()
+            },
+            onDismiss = { confirmDelete = false },
+        )
+    }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -273,7 +304,7 @@ private fun AutomationCard(entry: AutomationEntry, onDelete: () -> Unit, onFavou
                         Text(stringResource(R.string.journal_favourite))
                     }
                 }
-                TextButton(onClick = onDelete) { Text(stringResource(R.string.journal_delete)) }
+                TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.journal_delete)) }
             }
         }
     }
@@ -286,6 +317,7 @@ private fun outcomeLabel(outcome: AutomationOutcome): String = stringResource(
         AutomationOutcome.CAMAPS_ONLY -> R.string.journal_outcome_camaps_only
         AutomationOutcome.CANCELLED -> R.string.journal_outcome_cancelled
         AutomationOutcome.FAILED -> R.string.journal_outcome_failed
+        AutomationOutcome.LIBERTY -> R.string.journal_outcome_liberty
     },
 )
 
@@ -295,10 +327,12 @@ private fun outcomeColor(outcome: AutomationOutcome) = when (outcome) {
     AutomationOutcome.CAMAPS_ONLY -> MaterialTheme.colorScheme.tertiary
     AutomationOutcome.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
     AutomationOutcome.FAILED -> MaterialTheme.colorScheme.error
+    AutomationOutcome.LIBERTY -> MaterialTheme.colorScheme.secondary
 }
 
 private const val TAB_AUTOMATIONS = 0
 private const val TAB_MEALS = 1
+private const val TAB_GEMINI = 2
 
 private val entryDateFormat: DateTimeFormatter =
     DateTimeFormatter.ofPattern("dd/MM/yyyy 'à' HH:mm", Locale.FRANCE)

@@ -34,4 +34,6 @@ data class NightscoutTreatmentRef(
     val identifier: String?,
     /** `_id` attribué par le serveur ; c'est lui que la v1 sait supprimer. */
     val id: String? = null,
+    /** Glucides du traitement, `null` s'il n'en porte pas (sert à l'anti-doublon des repas). */
+    val carbs: Double? = null,
 )

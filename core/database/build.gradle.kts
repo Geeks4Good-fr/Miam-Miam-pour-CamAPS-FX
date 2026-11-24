@@ -40,4 +40,6 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    // Vrai org.json côté JVM : le stub d'android.jar ne fait que lever « Stub! ».
+    testImplementation(libs.json)
 }

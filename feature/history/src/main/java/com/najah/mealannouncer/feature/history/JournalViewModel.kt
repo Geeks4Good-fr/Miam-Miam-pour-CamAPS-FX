@@ -3,6 +3,16 @@ package com.najah.mealannouncer.feature.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.najah.mealannouncer.core.database.repository.FavoriteMealRepository
+import com.najah.mealannouncer.core.database.repository.GeminiMealLogRepository
+import com.najah.mealannouncer.core.model.GeminiMealLog
+import com.najah.mealannouncer.core.model.Carbs
+import com.najah.mealannouncer.data.nightscout.NightscoutRepository
+import com.najah.mealannouncer.data.nightscout.NightscoutSendOutcome
+import com.najah.mealannouncer.integration.glookoexport.GlookoCarnet
+import com.najah.mealannouncer.integration.glookoexport.GlookoCarnetMoment
+import com.najah.mealannouncer.integration.glookoexport.GlookoCarnetResult
+import java.time.LocalTime
+import java.time.ZoneId
 import com.najah.mealannouncer.core.database.repository.JournalRepository
 import com.najah.mealannouncer.core.model.AutomationEntry
 import com.najah.mealannouncer.core.model.AutomationSummary
@@ -29,7 +39,87 @@ import javax.inject.Inject
 class JournalViewModel @Inject constructor(
     private val journal: JournalRepository,
     private val favorites: FavoriteMealRepository,
+    private val geminiLog: GeminiMealLogRepository,
+    private val glookoCarnet: GlookoCarnet,
+    private val nightscout: NightscoutRepository,
 ) : ViewModel() {
+
+    /** Les repas menés avec Gemini, avec toute leur conversation (niveau 1 de la journalisation). */
+    val geminiMeals: StateFlow<List<GeminiMealLog>> = geminiLog.observeRecent(LIMIT).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+        initialValue = emptyList(),
+    )
+
+    fun deleteGeminiMeal(id: String) {
+        viewModelScope.launch { geminiLog.delete(id) }
+    }
+
+    /** Vrai pendant qu'un envoi du journal Gemini (Carnet ou Nightscout) est en cours. */
+    private val _sending = MutableStateFlow(false)
+    val sending: StateFlow<Boolean> = _sending.asStateFlow()
+
+    /**
+     * Note après coup un repas Gemini dans le Carnet Glooko : le détail lu dans la réponse de Gemini
+     * et son total. Sert quand l'enchaînement automatique s'est arrêté (essai du 23/11/2026 : CamAPS
+     * complété à la main, Carnet jamais écrit). CamAPS n'est jamais touché ici.
+     */
+    fun noteInGlooko(meal: GeminiMealLog) {
+        val total = meal.totalCarbs ?: return
+        if (_sending.value) return
+        viewModelScope.launch {
+            _sending.value = true
+            try {
+                val carbs = Carbs.of(total).toCamapsGrams()
+                val description = "Gemini : " + meal.detail.ifBlank { meal.meal }
+                val moment = GlookoCarnetMoment.forHour(meal.startedAt.atZone(ZoneId.systemDefault()).hour)
+                val line = when (val result = glookoCarnet.addEntry(description, carbs, moment)) {
+                    is GlookoCarnetResult.Saved -> "Carnet Glooko : noté après coup ($carbs g) — $description"
+                    is GlookoCarnetResult.Failed -> "Carnet Glooko : échec — ${result.message}"
+                }
+                geminiLog.addDestination(meal.id, stamp(line))
+                _notice.value = line
+            } finally {
+                _sending.value = false
+            }
+        }
+    }
+
+    /**
+     * Envoie après coup un repas Gemini à Nightscout : glucides et détail, avec le même anti-doublon
+     * que l'envoi automatique (une entrée Glooko-sync correspondante → description seule).
+     */
+    fun sendToNightscout(meal: GeminiMealLog) {
+        val total = meal.totalCarbs ?: return
+        if (_sending.value) return
+        viewModelScope.launch {
+            _sending.value = true
+            try {
+                val carbs = Carbs.of(total).toCamapsGrams()
+                val note = "Miam-Miam (Gemini) : " + meal.detail.ifBlank { meal.meal }
+                // L'heure du repas = celle de CamAPS (comme la synchro Glooko), jamais celle de l'envoi.
+                val sent = nightscout.sendMealWithCarbs(carbs, note, meal.camapsMoment(ZoneId.systemDefault()))
+                val label = when (val outcome = sent.outcome) {
+                    NightscoutSendOutcome.Sent -> if (sent.carbsCounted) {
+                        "$carbs g envoyés avec la description"
+                    } else {
+                        "description envoyée seule (glucides déjà comptés par la synchro Glooko)"
+                    }
+                    NightscoutSendOutcome.Simulated -> "simulation, rien envoyé"
+                    NightscoutSendOutcome.Disabled -> "Nightscout non réglé, rien envoyé"
+                    is NightscoutSendOutcome.Failed -> "échec (${outcome.kind})"
+                    else -> outcome.toString()
+                }
+                val line = "Nightscout : $label (après coup)"
+                geminiLog.addDestination(meal.id, stamp(line))
+                _notice.value = line
+            } finally {
+                _sending.value = false
+            }
+        }
+    }
+
+    private fun stamp(line: String) = "${LocalTime.now().withNano(0)} — $line"
 
     val entries: StateFlow<List<AutomationEntry>> = journal.observeRecent(LIMIT).stateIn(
         scope = viewModelScope,

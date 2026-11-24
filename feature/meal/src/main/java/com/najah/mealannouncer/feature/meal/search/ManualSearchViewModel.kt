@@ -66,6 +66,8 @@ data class SearchUiState(
     val noticeIsError: Boolean = false,
     val favouriteName: String = "",
     val savingFavourite: Boolean = false,
+    /** Mode Liberty (24/11/2026) : le panier est noté, jamais annoncé dans CamAPS. */
+    val liberty: Boolean = false,
     private val nextLineId: Long = 1L,
 ) {
     val resolvedCount: Int get() = lines.count { it.carbResult() is CarbResult.Computed }
@@ -114,6 +116,9 @@ class ManualSearchViewModel @Inject constructor(
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            mealRecord.config.collect { config -> _state.update { it.copy(liberty = config.liberty) } }
+        }
         viewModelScope.launch {
             favorites.observeFavorites().collect { list ->
                 _state.update { current ->
@@ -242,6 +247,10 @@ class ManualSearchViewModel @Inject constructor(
         if (!current.canSend) return
         val carbs = current.camapsGrams
         val description = describe(current.lines)
+        if (mealRecord.config.value.liberty) {
+            recordLiberty(carbs, description)
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(sending = true, notice = null) }
             val result = camaps.announceMeal(
@@ -319,6 +328,39 @@ class ManualSearchViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Mode Liberty (équipe médicale, 24/11/2026) : rien vers CamAPS, le panier est seulement noté
+     * (journal, puis Carnet Glooko si le suivi diabétologue l'autorise).
+     */
+    private fun recordLiberty(carbs: Int, description: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(sending = true, notice = null) }
+            val tracked = writeSuiviTargets(description, carbs)
+            journal.record(
+                carbs = carbs,
+                description = description,
+                source = AutomationSource.SEARCH,
+                outcome = AutomationOutcome.LIBERTY,
+                detail = if (tracked) {
+                    "Mode Liberty : rien dans CamAPS, repas noté dans le Carnet Glooko."
+                } else {
+                    "Mode Liberty : rien dans CamAPS ; Carnet Glooko non écrit (suivi coupé ou échec)."
+                },
+            )
+            _state.update {
+                it.copy(
+                    sending = false,
+                    notice = if (tracked) {
+                        "Mode Liberty : $carbs g notés dans le journal et le Carnet Glooko. Rien dans CamAPS."
+                    } else {
+                        "Mode Liberty : $carbs g notés dans le journal. Rien dans CamAPS."
+                    },
+                    lines = if (tracked) emptyList() else it.lines,
+                )
+            }
+        }
+    }
+
     /** Écrit le repas dans le Carnet Glooko si le suivi l'autorise ; dit si c'est fait. */
     private suspend fun writeSuiviTargets(description: String, carbs: Int): Boolean {
         val config = mealRecord.config.value
@@ -392,6 +434,24 @@ class ManualSearchViewModel @Inject constructor(
 
     fun deleteFavourite(id: String) {
         viewModelScope.launch { favorites.delete(id) }
+    }
+
+    /** Adresses déjà trouvées (ou absentes) par code-barres : une seule requête par produit. */
+    private val imageUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * L'adresse de la photo de face d'un produit, pour le reconnaître d'un coup d'œil (demande du
+     * 24/11/2026). Les fiches en ligne la portent déjà ; celles de la base du téléphone ne l'ont
+     * pas : on la demande à Open Food Facts par code-barres, une fois. `null` sans photo ou hors ligne.
+     */
+    suspend fun imageUrlFor(product: FoodProduct): String? {
+        product.imageUrl?.let { return it }
+        val barcode = product.barcode?.takeIf { it.isNotBlank() } ?: return null
+        imageUrls[barcode]?.let { return it.ifEmpty { null } }
+        val url = repository.productImage(barcode)
+        // Un échec réseau n'est pas mémorisé comme « sans photo » : seul un vrai résultat l'est.
+        if (url != null) imageUrls[barcode] = url
+        return url
     }
 
     companion object {

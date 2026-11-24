@@ -8,11 +8,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.najah.mealannouncer.core.database.dao.AutomationLogDao
 import com.najah.mealannouncer.core.database.dao.FavoriteMealDao
 import com.najah.mealannouncer.core.database.dao.FoodProductDao
+import com.najah.mealannouncer.core.database.dao.GeminiMealLogDao
 import com.najah.mealannouncer.core.database.dao.MealItemDao
 import com.najah.mealannouncer.core.database.dao.MealLogDao
 import com.najah.mealannouncer.core.database.entity.AutomationLogEntity
 import com.najah.mealannouncer.core.database.entity.FavoriteMealEntity
 import com.najah.mealannouncer.core.database.entity.FoodProductEntity
+import com.najah.mealannouncer.core.database.entity.GeminiMealLogEntity
 import com.najah.mealannouncer.core.database.entity.MealItemEntity
 import com.najah.mealannouncer.core.database.entity.MealLogEntity
 
@@ -30,8 +32,9 @@ import com.najah.mealannouncer.core.database.entity.MealLogEntity
         MealItemEntity::class,
         AutomationLogEntity::class,
         FavoriteMealEntity::class,
+        GeminiMealLogEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -47,8 +50,41 @@ abstract class MealAnnouncerDatabase : RoomDatabase() {
 
     abstract fun favoriteMealDao(): FavoriteMealDao
 
+    abstract fun geminiMealLogDao(): GeminiMealLogDao
+
     companion object {
         const val NAME = "meal-announcer.db"
+
+        /**
+         * Version 3 (23/11/2026) : journal complet des repas menés avec Gemini.
+         *
+         * Une table neuve, rien d'autre : migration purement additive, comme la version 2.
+         * Les colonnes reprennent exactement ce que Room attend pour [GeminiMealLogEntity]
+         * (les `Double?` sont des REAL sans NOT NULL).
+         */
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `gemini_meal_log` (" +
+                        "`id` TEXT NOT NULL, " +
+                        "`startedAt` INTEGER NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "`totalCarbs` REAL, " +
+                        "`minCarbs` REAL, " +
+                        "`maxCarbs` REAL, " +
+                        "`meal` TEXT NOT NULL, " +
+                        "`detail` TEXT NOT NULL, " +
+                        "`model` TEXT NOT NULL, " +
+                        "`turnsJson` TEXT NOT NULL, " +
+                        "`destinationsJson` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`id`))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_gemini_meal_log_startedAt` " +
+                        "ON `gemini_meal_log` (`startedAt`)",
+                )
+            }
+        }
 
         /**
          * Version 2 (14/11/2026) : journal d'automatisation et repas favoris.

@@ -27,6 +27,8 @@
     <string name="assistant_warnings">Remarques</string>
     <string name="assistant_announce">Annoncer à voix haute</string>
     <string name="assistant_write_camaps">Écrire dans CamAPS</string>
+    <string name="assistant_write_liberty">Noter le repas (Liberty : rien dans CamAPS)</string>
+    <string name="assistant_liberty_value">Total : %1$d g — mode Liberty, à ne pas annoncer dans CamAPS</string>
     <string name="assistant_restart">Recommencer</string>
     <string name="assistant_back">Retour</string>
     <string name="assistant_manual_hint">CamAPS est ouvert : saisissez la valeur dans « Ajouter un repas », puis confirmez vous-même.</string>
@@ -53,6 +55,16 @@
     <string name="assistant_carbs_guessed">Fiche introuvable : glucides estimés (moyenne). Le tableau nutritionnel donnerait la vraie valeur.</string>
     <string name="assistant_photo_package">Photographier l\'emballage</string>
     <string name="assistant_photo_seen">Ce que la photo montre</string>
+    <string name="assistant_gemini_title">Réponse de Gemini (échange %1$d)</string>
+    <string name="assistant_utensil_hint">Astuce : posez une fourchette ou une cuillère à côté du plat ou du produit. Elle sert d\'échelle à Gemini pour estimer les portions.</string>
+    <string name="assistant_photo_batch">%1$d photo(s) prête(s). Prendre une autre photo ?</string>
+    <string name="assistant_photo_batch_more">Autre photo</string>
+    <string name="assistant_photo_batch_send">Envoyer à Gemini</string>
+    <string name="assistant_photo_batch_cancel">Annuler</string>
+    <string name="assistant_gemini_off_title">Fiches Open Food Facts comparées par Gemini</string>
+    <string name="assistant_gemini_off_chosen">Retenue par Gemini pour « %1$s »</string>
+    <string name="assistant_gemini_off_candidate">Proposée pour « %1$s »</string>
+    <string name="assistant_gemini_portion_title">Votre portion de « %1$s » ressemble à laquelle ?</string>
     <string name="assistant_photo_camera">Photographier l\'assiette</string>
     <string name="assistant_photo_pick">Choisir une photo</string>
     <string name="assistant_photo_title">D\'après la photo</string>

@@ -68,6 +68,7 @@ fun ManualSearchScreen(
     onDeleteFavourite: (String) -> Unit,
     onDismissNotice: () -> Unit,
     modifier: Modifier = Modifier,
+    imageUrlFor: suspend (FoodProduct) -> String? = { null },
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -164,6 +165,7 @@ fun ManualSearchScreen(
                 items(state.lines, key = { "line-${it.id}" }) { line ->
                     CalculatorRow(
                         line = line,
+                        imageUrlFor = imageUrlFor,
                         carbResult = line.carbResult(),
                         onModeChange = { onModeChange(line.id, it) },
                         onQuantityChange = { onQuantityChange(line.id, it) },
@@ -186,7 +188,7 @@ fun ManualSearchScreen(
             if (state.results.isNotEmpty()) {
                 item { SectionTitle(stringResource(R.string.search_results)) }
                 items(state.results, key = { "result-${it.id}" }) { product ->
-                    ProductRow(product = product, onAdd = { onAddProduct(product) })
+                    ProductRow(product = product, imageUrlFor = imageUrlFor, onAdd = { onAddProduct(product) })
                 }
             } else if (state.hasSearched) {
                 item { Hint(stringResource(R.string.search_no_result)) }
@@ -195,7 +197,7 @@ fun ManualSearchScreen(
             if (state.results.isEmpty() && state.productFavourites.isNotEmpty() && !state.hasSearched) {
                 item { SectionTitle(stringResource(R.string.search_products_favourites)) }
                 items(state.productFavourites, key = { "pfav-${it.id}" }) { product ->
-                    ProductRow(product = product, onAdd = { onAddProduct(product) })
+                    ProductRow(product = product, imageUrlFor = imageUrlFor, onAdd = { onAddProduct(product) })
                 }
             }
         }
@@ -228,7 +230,7 @@ private fun Hint(text: String) {
 }
 
 @Composable
-private fun ProductRow(product: FoodProduct, onAdd: () -> Unit) {
+private fun ProductRow(product: FoodProduct, imageUrlFor: suspend (FoodProduct) -> String?, onAdd: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -236,6 +238,7 @@ private fun ProductRow(product: FoodProduct, onAdd: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            SearchThumbnail(product = product, imageUrlFor = imageUrlFor, modifier = Modifier.padding(end = 10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = product.displayName(), style = MaterialTheme.typography.bodyLarge)
                 Text(
@@ -295,6 +298,7 @@ private fun FavouriteRow(favourite: FavouriteMealUi, onLoad: () -> Unit, onDelet
 @Composable
 private fun CalculatorRow(
     line: SearchLine,
+    imageUrlFor: suspend (FoodProduct) -> String?,
     carbResult: CarbResult,
     onModeChange: (CalcMode) -> Unit,
     onQuantityChange: (String) -> Unit,
@@ -302,7 +306,10 @@ private fun CalculatorRow(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = line.product.displayName(), style = MaterialTheme.typography.bodyLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SearchThumbnail(product = line.product, imageUrlFor = imageUrlFor, modifier = Modifier.padding(end = 10.dp))
+                Text(text = line.product.displayName(), style = MaterialTheme.typography.bodyLarge)
+            }
             Spacer(Modifier.height(6.dp))
             Row(
                 modifier = Modifier
@@ -401,7 +408,10 @@ private fun TotalCard(
             }
             if (state.resolvedCount > 0) {
                 Text(
-                    text = stringResource(R.string.search_camaps_value, state.camapsGrams),
+                    text = stringResource(
+                        if (state.liberty) R.string.search_liberty_value else R.string.search_camaps_value,
+                        state.camapsGrams,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -412,12 +422,15 @@ private fun TotalCard(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                camapsTypes().forEach { type ->
-                    FilterChip(
-                        selected = state.camapsType == type,
-                        onClick = { onTypeChange(type) },
-                        label = { Text(camapsTypeLabel(type)) },
-                    )
+                // Le type de repas ne sert qu'à CamAPS : inutile sous Liberty.
+                if (!state.liberty) {
+                    camapsTypes().forEach { type ->
+                        FilterChip(
+                            selected = state.camapsType == type,
+                            onClick = { onTypeChange(type) },
+                            label = { Text(camapsTypeLabel(type)) },
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -430,7 +443,7 @@ private fun TotalCard(
                     if (state.sending) {
                         stringResource(R.string.search_sending)
                     } else {
-                        stringResource(R.string.search_send)
+                        stringResource(if (state.liberty) R.string.search_send_liberty else R.string.search_send)
                     },
                 )
             }

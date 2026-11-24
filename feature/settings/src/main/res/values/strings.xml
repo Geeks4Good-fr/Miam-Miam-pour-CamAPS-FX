@@ -65,6 +65,8 @@
     <string name="settings_meal_title">Enregistrement du repas</string>
     <string name="settings_meal_intro">Au quotidien, l\'essentiel va au plus vite. Le mode « Suivi diabétologue » ajoute, pour votre médecin, la description du repas dans le Carnet Glooko et en note Nightscout — à activer les jours avant un rendez-vous, à couper ensuite.</string>
     <string name="settings_meal_camaps_auto">Insertion automatique dans CamAPS FX</string>
+    <string name="settings_meal_gemini_direct">Mode Gemini direct</string>
+    <string name="settings_meal_gemini_direct_help">Vos photos et vos phrases partent telles quelles à Gemini (gemini-4-hydrogen), comme sur le site de Gemini, et l\'application reprend son total. Désactivé, l\'ancienne méthode reprend : aliment par aliment, Open Food Facts et relecture.</string>
     <string name="settings_meal_camaps_auto_help">Sur votre confirmation vocale, l\'application saisit les glucides dans « Ajouter un repas » et appuie sur « Continuer ». Elle ne touche jamais au calcul de bolus ni à l\'insuline. Désactivé, CamAPS est seulement ouvert et vous saisissez vous-même.</string>
     <string name="settings_meal_camaps_accessibility_on">Service d\'accessibilité « Insertion repas CamAPS » : activé.</string>
     <string name="settings_meal_camaps_accessibility_off">Service d\'accessibilité « Insertion repas CamAPS » : désactivé. L\'insertion automatique ne peut pas tourner tant qu\'il n\'est pas allumé dans Android.</string>
@@ -236,4 +238,8 @@
     <string name="settings_backup_help">Un fichier qui contient vos réglages et vos clés (OpenRouter, Nightscout, maison, Glooko). Il sert à changer de téléphone, à réinstaller, ou à passer de la version de test à la version publiée sans tout ressaisir. Gardez-le : il contient vos clés en clair.</string>
     <string name="settings_backup_export">Sauvegarder</string>
     <string name="settings_backup_import">Restaurer</string>
+    <string name="settings_meal_liberty">J\'utilise la fonction Liberty de CamAPS FX</string>
+    <string name="settings_meal_liberty_on">Liberty activé : Miam-Miam n\'annonce PLUS AUCUN repas dans « Ajouter un repas » de CamAPS FX, ni automatiquement ni en ouvrant l\'écran. Ne faites pas non plus de bolus avec l\'onglet couteau-fourchette. Le reste continue : calcul, journal, Carnet Glooko, Nightscout, glycémies.</string>
+    <string name="settings_meal_liberty_off">Liberty désactivé : Miam-Miam peut préparer l\'annonce du repas dans « Ajouter un repas » de CamAPS FX (vous confirmez toujours vous-même).</string>
+    <string name="settings_meal_liberty_doctor">L\'utilisation de Liberty se décide avec votre diabétologue : référez-vous à lui avant d\'activer ou de couper ce réglage.</string>
 </resources>

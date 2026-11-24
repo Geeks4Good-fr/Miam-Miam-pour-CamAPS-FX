@@ -15,6 +15,15 @@ class TreatmentPayloadTest {
     }
 
     @Test
+    fun `une note de repas Gemini ne porte aucun glucide compte`() {
+        val json = TreatmentPayload.note("Miam-Miam (Gemini) : 65 g annoncés à CamAPS — pain 25 g", Instant.parse("2026-11-23T11:30:00Z"))
+        assertEquals("Note", json.getString("eventType"))
+        assertEquals(false, json.has("carbs"))
+        assertEquals("Miam-Miam (Gemini) : 65 g annoncés à CamAPS — pain 25 g", json.getString("notes"))
+        assertEquals("2026-11-23T11:30:00.000Z", json.getString("created_at"))
+    }
+
+    @Test
     fun `signe l envoi sans exposer de donnee personnelle`() {
         val json = TreatmentPayload.build(sampleMeal)
         assertEquals("Meal Announcer", json.getString("enteredBy"))

@@ -19,6 +19,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Installation automatique des données hors ligne (Open Food Facts, portions, voix) :
+         un long téléchargement en tâche de fond, sur Wi-Fi (OfflinePacksWorker). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
@@ -138,6 +141,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/photo_paths" />
         </provider>
+
+        <!--
+            Le service de premier plan de WorkManager porte les longs téléchargements des
+            paquets hors ligne : il doit déclarer le type « dataSync » (Android 14 et plus).
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <!--
             WorkManager est initialisé par l'application elle-même (Configuration.Provider),

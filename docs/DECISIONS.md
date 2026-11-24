@@ -764,3 +764,113 @@ habitudes françaises, et l'API quand on ne trouve pas »).
 
 Détails : `docs/PORTIONS.md`.
 
+
+## 50. Mode « Gemini direct » : la conversation part telle quelle à Gemini
+
+**Date :** 23/11/2026. **Décidé par :** le porteur du projet (« totalement insatisfait des résultats de l'IA » ;
+« code le mode Gemini direct avec gemini-4-hydrogen »).
+
+- **Constat (banc du 23/11, plateau d'hôpital, 2 photos + 3 messages)** : Gemini web donne
+  54–67 g (≈ 60 g). Interrogés de la même façon, sans consigne, par OpenRouter :
+  gemini-3.1-flash-lite ≈ 55 g, gemini-3.8-flash 50–60 g, gemini-3.1-pro 55–60 g,
+  **gemini-4-hydrogen 57–73 g (≈ 65 g)**, le plus proche du site par sa façon de répondre.
+  Le modèle brut est donc bon : c'est la chaîne de l'appli (lignes, Open Food Facts, banque,
+  relecture par un autre modèle) qui dégradait le résultat.
+- **Mode direct (activé par défaut, Réglages → Enregistrement du repas)** : phrases dictées ou
+  tapées et photos partent **sans consigne** à `google/gemini-4-hydrogen`, dans une seule
+  conversation, comme sur gemini.google.com. Une photo seule est accompagnée de « Calcule mes
+  glucides », les suivantes de « Ceci est une photo complémentaire du même repas. »
+- Un **lecteur** (`gemini-3.1-flash-lite`, mode JSON) lit chaque réponse **sans rien recalculer** :
+  total, fourchette, phrase à dire, question éventuelle, repas en quelques mots, « complet ».
+- Le total devient **une seule ligne** du repas ; la réponse entière s'affiche dans la carte
+  « Réponse de Gemini ». Une question de Gemini est posée à voix haute et la réponse repart dans
+  la conversation. « Ajoute… » et « retire le dernier » sont dits à Gemini ; « annuler tout »
+  et « Recommencer » vident la conversation.
+- **Sécurité** : envoi automatique vers CamAPS seulement si le total est « complet » (rien de
+  supposé : pas de plat absent de la photo compté avec une portion standard) et sans question
+  en attente ; la confirmation vocale de CamAPS reste exigée. Aucune insuline : « Ajouter un
+  repas » informe la boucle fermée.
+- Désactivé, l'ancienne chaîne (décisions 43, 48, 49) reprend inchangée.
+- Coût mesuré : ≈ 4 centimes pour 3 échanges avec 2 photos ; 7 à 11 s par échange.
+**Journalisation à 3 niveaux (23/11/2026, demande du porteur du projet)** :
+1. **Application** — onglet « Gemini » du Journal (table `gemini_meal_log`, base version 3,
+   migration additive) : toute la conversation, chaque message exact et chaque réponse complète
+   de Gemini avec son Markdown et ses tableaux (police à chasse fixe), la mention des photos
+   (les photos elles-mêmes ne sont pas gardées), le total, la fourchette, le détail et la liste
+   horodatée des envois. Bouton « Partager » : tout le repas en texte.
+2. **Carnet Glooko** — le détail court aliment par aliment (« carottes râpées 7 g, pommes de
+   terre 30 g, pain 25 g… »), lu dans la réponse par le lecteur ; mêmes règles qu'avant
+   (mode « Suivi diabétologue », après « Confirmer » dans CamAPS).
+3. **Nightscout** — un traitement **« Carbs » avec les glucides** et la description en note
+   (« Miam-Miam (Gemini) : <détail> », `enteredBy: Meal Announcer`), décision du porteur du projet du
+   23/11/2026 (d'abord une note sans glucides, puis « mets les glucides »). **Anti-doublon** avec
+   la synchro Glooko → treatments du glooko-worker (`enteredBy: Glooko-sync`) :
+   - cas courant (Miam-Miam écrit d'abord) : le **glooko-worker** n'écrit pas son entrée quand une
+     entrée « Meal Announcer » de même valeur (± 1 g) existe à ± 30 min — confié à l'administrateur du serveur le 23/11 ;
+   - cas inverse (Miam-Miam écrit après la synchro) : l'appli lit `treatments` à ± 30 min ; si une
+     entrée « Glooko-sync » correspond, elle n'envoie qu'une **note** sans glucides.
+   Même interrupteur qu'avant (« Suivi diabétologue » → « note Nightscout »). La note des repas
+   hors mode Gemini reste gelée. **Ne pas distribuer cette version avant le déploiement de
+   l'anti-doublon du glooko-worker** : sinon chaque repas Gemini est compté deux fois.
+**Compléments du 23/11/2026 (soir, demandes du porteur du projet)** :
+- **Contexte permanent** (`DIRECT_CONTEXT`, seule consigne, l'équivalent des « infos enregistrées » de
+  Gemini) : sans lui, une phrase seule (« j'ai bu une tasse de lait chocolaté ») ouvrait une
+  discussion au lieu d'un calcul. Il demande aussi d'utiliser un couvert visible comme échelle et
+  de poser les questions qui manquent (quantité, portion, part du paquet, marque, cuisson).
+- **Plusieurs photos** : « Choisir une photo » accepte jusqu'à 6 photos, envoyées dans un seul
+  message ; « Prendre une photo » demande ensuite « Autre photo / Envoyer à Gemini / Annuler ».
+  Conseil du couvert affiché à l'écran et dit au premier cliché.
+- **Open Food Facts** : le lecteur relève les produits industriels (vus, ou nommés par
+  l'utilisateur ou par Gemini) ; l'appli cherche leur fiche (code-barres lu, puis base du
+  téléphone, puis en ligne ; 3 fiches au plus par produit, 4 produits au plus par repas) et la
+  renvoie à Gemini avec la photo de la fiche : il compare visuellement, retient une fiche (code-
+  barres), recalcule avec l'étiquette et demande la quantité qui manque. Les fiches s'affichent
+  sous sa réponse, la retenue cochée. Essai réel : 3 Prince → fiche 7622210449283 retenue, Petit
+  Beurre écarté, 41,4 g.
+- **Portions en images** pour les aliments sans marque : toucher une photo envoie « ma portion
+  ressemble à la photo … » à Gemini, qui recalcule. La grande banque de portions (862 aliments,
+  2 195 photos, `modele-portions.zip`) avait disparu avec la version debug désinstallée le 16/11 :
+  à réimporter (Réglages → Portions en images) ; l'import lit désormais le paquet au fil de
+  l'eau (plus de 56 Mo en mémoire, risque pour CamAPS).
+## 51. Données hors ligne installées toutes seules (Open Food Facts, portions en images, voix)
+
+**Date :** 23/11/2026. **Décidé par :** le porteur du projet (« l'utilisateur ne devrait pas le faire
+manuellement, ça devrait être automatique […] le moins d'actions à faire possible »).
+
+- La grande banque de portions (`modele-portions.zip` : 862 aliments, 2 195 photos pesées,
+  valeurs Ciqual 2025 et IG, photos sous licence CC BY : Geeks4Good 1 379, Patrick Blan 551, Alexandre Roschewitz 265, accord des deux photographes recueilli par le porteur du projet le 23/11/2026) devient le 5e paquet hors
+  ligne (`OfflinePack.PORTIONS`, requis), téléchargé depuis les publications GitHub comme les
+  quatre autres, contrôlé par SHA-256 (`edb10860…fc51`) et décompressé dans
+  `getExternalFilesDir/portions-modele`. `PortionBank` le lit entre la base embarquée (33
+  aliments) et les imports de l'utilisateur.
+- `OfflinePacksWorker` (WorkManager, service de premier plan « dataSync ») est programmé à chaque
+  démarrage tant qu'un paquet requis manque : il attend le **Wi-Fi** (plus de 550 Mo), assez de
+  place et une batterie correcte, puis installe les paquets un par un avec une notification de
+  progression, et réessaie plus tard en cas de panne. Aucune action de l'utilisateur.
+- L'assistant d'installation garde ses boutons (forfait mobile, fichier local) ; un verrou
+  commun empêche deux téléchargements du même paquet.
+- **Publié** le 23/11/2026 sur la publication v0.12.0 (Geeks4Good-fr), avec `CREDITS.md`, le champ
+  `photo_auteur` de chaque portion et les crédits dans les notes de la publication.
+- L'assistant d'installation ne s'ouvre plus au lancement que s'il manque la clé IA.
+
+## 52. Mode Liberty : plus aucune annonce dans « Ajouter un repas »
+
+**Date :** 24/11/2026. **Décidé par :** l'équipe médicale, transmis par le porteur du projet (« pour tous les
+utilisateurs de CamAPS FX utilisant la fonctionnalité Liberty, il ne faut plus que l'automate
+annonce les glucides dans Ajouter repas […] Tout le reste est conservé »).
+
+- Réglage `MealRecordConfig.liberty` (+ `libertyAnswered`), demandé à l'installation (étape 1 de
+  l'assistant, qui se rouvre tant qu'il n'y a pas de réponse) et modifiable dans Réglages → Repas &
+  CamAPS. Valeur par défaut : non, mais la question est **obligatoire**.
+- Sous Liberty, la première partie de la séquence (CamAPS) est supprimée : l'assistant, la
+  recherche manuelle et le total dicté (« annonce 25 grammes ») ne font que **noter** le repas
+  (journal, puis Carnet Glooko et Nightscout selon le mode « Suivi diabétologue »). Pas de
+  question « repas ou collation ? » ni « je confirme ? ».
+- Défense en profondeur : `DispatchingCamapsGateway` refuse toute écriture sous Liberty, même si
+  un chemin oubliait de tester le réglage.
+- L'insertion automatique est masquée dans les réglages sous Liberty (son état est gardé).
+- Documentation : README, manuel (chapitre 0) et consignes NotebookLM disent explicitement aux
+  utilisateurs de Liberty de ne pas annoncer leurs repas dans « Ajouter un repas » ni de faire de
+  bolus avec l'onglet couteau-fourchette, et de se référer à leur diabétologue.
+- Conséquence : sous Liberty, les glucides n'arrivent plus dans Glooko par CamAPS ; l'anti-doublon
+  Nightscout (± 30 min, ± 1 g) ne trouve donc rien et Miam-Miam envoie les glucides lui-même.

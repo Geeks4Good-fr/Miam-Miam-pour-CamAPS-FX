@@ -21,7 +21,23 @@ import com.najah.mealannouncer.data.homeassistant.ExpectedAnswer
 import com.najah.mealannouncer.data.homeassistant.HomeDictation
 import com.najah.mealannouncer.data.homeassistant.HomeLink
 import com.najah.mealannouncer.data.homeassistant.HomeVoiceLink
+import com.najah.mealannouncer.core.database.repository.GeminiMealLogRepository
+import com.najah.mealannouncer.core.model.GeminiMealLog
+import com.najah.mealannouncer.core.model.GeminiTurn
+import com.najah.mealannouncer.data.mistral.AI_DIRECT_MODEL
+import com.najah.mealannouncer.data.mistral.ChatRole
+import com.najah.mealannouncer.data.nightscout.NightscoutRepository
+import com.najah.mealannouncer.core.model.FoodProduct
+import com.najah.mealannouncer.feature.assistant.portions.PortionBank
+import com.najah.mealannouncer.feature.assistant.portions.PortionLookup
+import com.najah.mealannouncer.feature.assistant.portions.PortionOption
+import com.najah.mealannouncer.data.nightscout.NightscoutSendOutcome
 import com.najah.mealannouncer.data.mistral.DetectedFood
+import com.najah.mealannouncer.data.mistral.DirectMessage
+import com.najah.mealannouncer.data.mistral.DirectSummary
+import com.najah.mealannouncer.data.mistral.GeminiDirectChat
+import com.najah.mealannouncer.data.mistral.HttpGeminiDirectChat
+import com.najah.mealannouncer.data.mistral.jpegDataUri
 import com.najah.mealannouncer.data.mistral.MistralException
 import com.najah.mealannouncer.data.mistral.MistralTranscriber
 import com.najah.mealannouncer.data.mistral.PackagePhotoReader
@@ -57,7 +73,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.Instant
 import java.time.LocalTime
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
@@ -119,6 +137,14 @@ data class AssistantUiState(
     val conversation: ConversationUi? = null,
     /** Les repas favoris : le même petit-déjeuner, le même goûter, annoncés en un geste. */
     val favourites: List<FavoriteMeal> = emptyList(),
+    /** La dernière réponse de Gemini en mode direct, `null` hors de ce mode. */
+    val direct: DirectAnswerUi? = null,
+    /** Photos prises en attente d'envoi (« Prendre une autre photo ? »), `null` s'il n'y en a pas. */
+    val photoBatch: PhotoBatchUi? = null,
+    /** Vrai quand le mode Gemini direct est actif : l'écran montre le conseil du couvert. */
+    val geminiDirect: Boolean = false,
+    /** Mode Liberty (24/11/2026) : le repas est noté, jamais annoncé dans CamAPS. */
+    val liberty: Boolean = false,
 ) {
 
     val busy: Boolean
@@ -155,6 +181,54 @@ data class AssistantUiState(
             photo == null &&
             camapsConfirm == null &&
             conversation == null
+}
+
+/** Une fiche Open Food Facts montrée à l'utilisateur en mode Gemini. */
+data class OffCardUi(
+    val product: FoodProduct,
+    /** Le produit tel que Gemini l'a nommé. */
+    val askedName: String,
+    /** Vrai quand Gemini a dit retenir cette fiche après comparaison des photos. */
+    val chosen: Boolean,
+)
+
+/** Les portions en images d'un aliment sans marque, en mode Gemini. */
+data class DirectPortionChoice(
+    /** Le nom donné par Gemini (« riz »). */
+    val said: String,
+    /** L'aliment de la banque qui lui correspond. */
+    val bankName: String,
+    val options: List<PortionOption>,
+)
+
+/** Les photos prises à l'appareil et pas encore envoyées à Gemini. */
+data class PhotoBatchUi(val count: Int)
+
+/** La réponse de Gemini en mode direct, telle que l'écran la montre. */
+data class DirectAnswerUi(
+    /** La réponse complète, débarrassée du Markdown. */
+    val answer: String,
+    val totalGrams: Double?,
+    val minGrams: Double?,
+    val maxGrams: Double?,
+    /** Nombre d'échanges déjà faits dans ce repas. */
+    val exchanges: Int,
+    /** Les fiches Open Food Facts proposées à Gemini, marquées quand il les a retenues. */
+    val offCards: List<OffCardUi> = emptyList(),
+    /** Les portions en images proposées pour les aliments sans marque. */
+    val portionChoices: List<DirectPortionChoice> = emptyList(),
+) {
+    /** « Total retenu : 60 g (54 à 67 g) », ou `null` si Gemini n'a pas donné de total. */
+    val totalLabel: String?
+        get() {
+            val total = totalGrams ?: return null
+            val range = if (minGrams != null && maxGrams != null && maxGrams > minGrams) {
+                " (${formatQuantityText(minGrams)} à ${formatQuantityText(maxGrams)} g)"
+            } else {
+                ""
+            }
+            return "Total retenu : ${formatQuantityText(total)} g$range"
+        }
 }
 
 /**
@@ -284,6 +358,13 @@ class MealAssistantViewModel @Inject constructor(
     private val homeLink: HomeLink,
     private val phoneLock: PhoneLock,
     private val shopping: ShoppingSettings,
+    private val geminiDirect: GeminiDirectChat,
+    /** Journal complet des repas Gemini (niveau 1) et note Nightscout (niveau 3). */
+    private val geminiLog: GeminiMealLogRepository,
+    private val nightscout: NightscoutRepository,
+    /** Mode Gemini : fiches Open Food Facts des produits industriels, portions en images des autres. */
+    private val productFinder: DirectProductFinder,
+    private val portions: PortionLookup,
     private val wakeWordLink: WakeWordLink = WakeWordLink(),
     private val wakeWordArbitrator: WakeWordArbitrator = WakeWordArbitrator(),
     /** Journal d'automatisation (point 3) et repas favoris (point 4). */
@@ -336,6 +417,32 @@ class MealAssistantViewModel @Inject constructor(
     private var conversationSession: ConversationSession? = null
 
     /**
+     * La conversation avec Gemini en mode direct : chaque message envoyé (texte, photo) et chaque
+     * réponse, dans l'ordre. `null` tant qu'aucun repas n'est commencé dans ce mode ; « Recommencer »
+     * la vide. Un message n'y entre qu'avec sa réponse : un échange échoué ne laisse pas de trou.
+     */
+    private var directMessages: MutableList<DirectMessage>? = null
+
+    /**
+     * Le journal complet du repas Gemini en cours (niveau 1 : toute la conversation, tableaux
+     * compris, gardée sur le téléphone). Réécrit après chaque échange et chaque envoi.
+     */
+    private var directLog: GeminiMealLog? = null
+
+    /** Produits déjà cherchés dans Open Food Facts pendant ce repas : chacun ne l'est qu'une fois. */
+    private val directLookedUp = mutableSetOf<String>()
+
+    /** Les fiches Open Food Facts proposées à Gemini pendant ce repas, et celles qu'il a retenues. */
+    private val directOffCandidates = mutableListOf<OffCandidate>()
+    private val directChosenBarcodes = mutableSetOf<String>()
+
+    /** Photos prises à l'appareil et pas encore envoyées : elles partent ensemble, en un seul message. */
+    private val pendingDirectPhotos = mutableListOf<Uri>()
+
+    /** Vrai quand le conseil du couvert (échelle des portions) a déjà été dit pour ce repas. */
+    private var utensilHintSaid = false
+
+    /**
      * La réponse attendue du micro de l'écran, quand la reconnaissance du téléphone n'a pas
      * répondu : le dialogue l'attend au lieu de se poursuivre sans elle.
      */
@@ -351,6 +458,12 @@ class MealAssistantViewModel @Inject constructor(
     private var appendNextInput: Boolean = false
 
     init {
+        // Le mode Gemini direct change les conseils affichés (couvert à côté du plat).
+        viewModelScope.launch {
+            mealRecord.config.collect { config ->
+                _state.update { it.copy(geminiDirect = config.geminiDirect, liberty = config.liberty) }
+            }
+        }
         // Les favoris suivent la base : un repas enregistré apparaît sans recharger l'écran.
         viewModelScope.launch {
             favorites.observeFavorites().collect { list ->
@@ -789,6 +902,20 @@ class MealAssistantViewModel @Inject constructor(
 
     /** Exécute une commande vocale ou textuelle (« annuler tout le repas », « annuler le dernier aliment », « ajoute / rajoute »). */
     private suspend fun executeMealCommand(command: MealCommand, apiKey: String?) {
+        // Mode Gemini direct, repas commencé : « ajoute… » et « retire le dernier » se disent à
+        // Gemini, qui tient lui-même la liste du repas. « Annuler tout » reste local.
+        if (command !is MealCommand.CancelAll && mealRecord.config.value.geminiDirect && directMessages != null) {
+            val text = when (command) {
+                MealCommand.RemoveLastFood -> "Retire le dernier aliment, je ne l'ai pas mangé."
+                is MealCommand.AddFood -> command.foodText.takeIf { it.isNotBlank() }?.let { "J'ajoute aussi : $it" }
+                MealCommand.CancelAll -> null
+            }
+            val key = apiKey ?: withContext(Dispatchers.IO) { keys.read() }
+            if (text != null && !key.isNullOrBlank()) {
+                startDirect(key, text)
+                return
+            }
+        }
         when (command) {
             MealCommand.CancelAll -> cancelAllMeal()
             MealCommand.RemoveLastFood -> removeLastFood()
@@ -1029,10 +1156,317 @@ class MealAssistantViewModel @Inject constructor(
      * manque à voix haute, et l'application chiffre après chaque réponse.
      */
     private fun startConversation(key: String, phrase: String) {
+        if (mealRecord.config.value.geminiDirect) {
+            startDirect(key, phrase)
+            return
+        }
         conversationJob?.cancel()
         val session = conversation.newSession(key)
         conversationSession = session
         conversationJob = viewModelScope.launch { runConversation(session, phrase, resumed = false) }
+    }
+
+    /**
+     * Mode Gemini direct : [text] (et les photos [images], s'il y en a) part dans la conversation
+     * du repas, telle quelle. Une conversation déjà en cours est coupée : son historique, lui, reste.
+     */
+    private fun startDirect(key: String, text: String, images: List<Uri> = emptyList()) {
+        conversationJob?.cancel()
+        conversationJob = viewModelScope.launch { runDirect(key, text, images) }
+    }
+
+    /**
+     * La boucle du mode Gemini direct (`docs/DECISIONS.md` § 50).
+     *
+     * Gemini répond comme sur son site ; un second modèle, court, lit sa réponse pour en tirer le
+     * total, la phrase à dire, la question éventuelle, les produits industriels et les aliments sans
+     * marque — sans rien recalculer. Pour un produit industriel, l'appli cherche sa fiche Open Food
+     * Facts et la renvoie à Gemini avec sa photo : Gemini compare visuellement, choisit la fiche,
+     * recalcule et demande la quantité si elle manque (demande du 23/11/2026). Le total devient une
+     * seule ligne du repas, que les boutons habituels (CamAPS, favoris) traitent comme les autres.
+     * La boucle s'arrête quand Gemini ne pose plus de question ; elle ne part seule vers CamAPS que si
+     * le total couvre tout le repas et que l'insertion automatique est réglée (le « oui » vocal de la
+     * confirmation reste exigé).
+     */
+    private suspend fun runDirect(key: String, firstText: String, firstImages: List<Uri>) {
+        var text = firstText
+        var images = firstImages
+        var chainCamaps = false
+        var endedByCommand = false
+        try {
+            for (turn in 0 until MAX_CONVERSATION_TURNS) {
+                _state.update {
+                    it.copy(
+                        phase = AssistantPhase.ANALYSING,
+                        error = null,
+                        camaps = null,
+                        recordNotice = null,
+                        conversation = (it.conversation ?: ConversationUi())
+                            .copy(thinking = true, listening = false, awaitingMic = false),
+                    )
+                }
+                val photoData = readDirectPhotos(images) ?: return
+                images = emptyList()
+                var (answer, summary) = directExchange(key, DirectMessage(ChatRole.USER, text, photoData)) ?: return
+                saveDirectExchange(text, withPhoto = photoData.isNotEmpty(), answer = answer, summary = summary)
+
+                // Produits industriels : leur fiche Open Food Facts, comparée par Gemini à la photo.
+                val fresh = summary.products.filter { directLookedUp.size < MAX_PRODUCT_LOOKUPS && directLookedUp.add(productKey(it.name, it.brand)) }
+                if (fresh.isNotEmpty()) {
+                    val candidates = productFinder.find(fresh)
+                    Log.i(DIRECT_TAG, "Open Food Facts : ${candidates.size} fiche(s) pour ${fresh.map { it.name }}")
+                    if (candidates.isNotEmpty()) {
+                        directOffCandidates += candidates
+                        _state.update { it.copy(direct = it.direct?.copy(offCards = offCards(emptyList()))) }
+                        val offText = DirectProductFinder.message(candidates)
+                        val offImages = candidates.mapNotNull { it.imageDataUri }
+                        directExchange(key, DirectMessage(ChatRole.USER, offText, offImages))?.let { (offAnswer, offSummary) ->
+                            answer = offAnswer
+                            summary = offSummary
+                            saveDirectExchange(offText, withPhoto = offImages.isNotEmpty(), answer = answer, summary = summary)
+                        }
+                    }
+                }
+                directChosenBarcodes += summary.chosenBarcodes
+                // La banque de portions lit ses fichiers : hors du fil de l'écran.
+                val choices = withContext(Dispatchers.IO) { portionChoices(summary.plainFoods) }
+                applyDirectAnswer(answer, summary, exchanges = (directMessages?.size ?: 0) / 2, choices = choices)
+                logMeal("Gemini direct, échange ${(directMessages?.size ?: 0) / 2}")
+
+                say(summary.spoken)
+                val question = summary.question
+                if (question == null) {
+                    val grams = _state.value.camapsGrams
+                    chainCamaps = summary.complete && grams > 0 && chainsAfterTotal()
+                    return
+                }
+                val heard = conversationListen(question) ?: run {
+                    say(if (_state.value.camapsGrams > 0) DIRECT_SILENT_WITH_TOTAL else CONVERSATION_SILENT)
+                    return
+                }
+                if (MealCommand.parse(heard) == MealCommand.CancelAll) {
+                    endedByCommand = true
+                    cancelAllMeal()
+                    return
+                }
+                text = heard
+            }
+            say(CONVERSATION_TOO_LONG)
+        } finally {
+            speech.stop()
+            pendingAnswer = null
+            if (!endedByCommand) {
+                if (!chainCamaps) home = null
+                _state.update {
+                    it.copy(
+                        conversation = null,
+                        progress = null,
+                        phase = AssistantPhase.READY,
+                        transcript = "",
+                    )
+                }
+                if (chainCamaps) writeToCamaps()
+            }
+        }
+    }
+
+    /**
+     * Lit les photos à envoyer (réduites en JPEG). Rend `null` — et le dit — si l'une d'elles est
+     * illisible ; les fichiers pris par l'appli sont effacés dans tous les cas.
+     */
+    private suspend fun readDirectPhotos(uris: List<Uri>): List<String>? {
+        val data = mutableListOf<String>()
+        for (uri in uris) {
+            val one = try {
+                photos.jpeg(uri)?.takeIf { it.isNotEmpty() }?.let(::jpegDataUri)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                null
+            } finally {
+                // Une photo prise par l'appli n'a pas à rester sur le téléphone.
+                photos.forget(uri)
+            }
+            if (one == null) {
+                uris.forEach(photos::forget)
+                _state.update { it.copy(error = PHOTO_UNREADABLE) }
+                return null
+            }
+            data += one
+        }
+        return data
+    }
+
+    /**
+     * Un échange avec Gemini : [message] part avec tout l'historique, la réponse est lue, puis les
+     * deux entrent dans l'historique. Rend `null` — et le dit — en cas d'échec.
+     */
+    private suspend fun directExchange(key: String, message: DirectMessage): Pair<String, DirectSummary>? {
+        val history = directMessages ?: mutableListOf<DirectMessage>().also { directMessages = it }
+        val waitSpoken = AtomicBoolean(false)
+        val waiting = viewModelScope.launch {
+            delay(WAIT_PHRASE_MS)
+            waitSpoken.set(true)
+            say(WAIT_PHRASE)
+        }
+        val started = System.currentTimeMillis()
+        val result = try {
+            withContext(Dispatchers.IO) {
+                val reply = geminiDirect.reply(key, history + message)
+                reply to geminiDirect.summarize(key, reply, message.text)
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // MistralException surtout ; toute autre panne se dit aussi, sans faire tomber l'appli.
+            Log.w(DIRECT_TAG, "Échange en échec : ${error.message}")
+            _state.update { it.copy(progress = null, error = error.message ?: CONVERSATION_FAILED) }
+            say(CONVERSATION_FAILED)
+            return null
+        } finally {
+            if (waitSpoken.get() && currentCoroutineContext().isActive) waiting.join() else waiting.cancel()
+        }
+        history += message
+        history += DirectMessage(ChatRole.ASSISTANT, result.first)
+        val summary = result.second
+        Log.i(
+            DIRECT_TAG,
+            "Échange ${history.size / 2} (${message.images.size} photo(s)) en ${System.currentTimeMillis() - started} ms : " +
+                "total ${summary.totalGrams} g (${summary.minGrams}–${summary.maxGrams}), complet=${summary.complete}, " +
+                "question=${summary.question}, produits=${summary.products.map { it.name }}, sans marque=${summary.plainFoods}",
+        )
+        return result
+    }
+
+    /** Les cartes Open Food Facts à l'écran : chaque fiche proposée, marquée si Gemini l'a retenue. */
+    private fun offCards(chosen: Collection<String>): List<OffCardUi> {
+        val retained = chosen.toSet() + directChosenBarcodes
+        return directOffCandidates.distinctBy { it.product.id }.map { candidate ->
+            OffCardUi(
+                product = candidate.product,
+                askedName = candidate.asked.name,
+                chosen = candidate.product.barcode != null && candidate.product.barcode in retained,
+            )
+        }
+    }
+
+    /** Les portions en images proposées pour les aliments sans marque de la réponse (banque de portions). */
+    private fun portionChoices(plainFoods: List<String>): List<DirectPortionChoice> =
+        plainFoods.mapNotNull { name ->
+            val match = portions.match(name) ?: return@mapNotNull null
+            val options = portions.options(match.toProduct().id).filter { it.imagePath != null }
+            if (options.isEmpty()) null else DirectPortionChoice(said = name, bankName = match.food.name, options = options)
+        }.distinctBy { it.bankName }
+
+    /**
+     * Une portion en images touchée en mode Gemini : elle part à Gemini comme une précision de
+     * l'utilisateur, et Gemini refait son calcul.
+     */
+    fun pickDirectPortion(said: String, option: PortionOption) {
+        viewModelScope.launch {
+            val key = withContext(Dispatchers.IO) { keys.read() } ?: return@launch
+            if (key.isBlank()) return@launch
+            val label = option.label?.let { "« $it »" } ?: "de ${formatQuantityText(option.grams)} g"
+            startDirect(key, "Pour « $said », ma portion ressemble à la photo $label, soit environ ${formatQuantityText(option.grams)} g.")
+        }
+    }
+
+    private fun productKey(name: String, brand: String?): String =
+        PortionBank.normalize(listOfNotNull(brand, name).joinToString(" "))
+
+    /** Niveau 1 : ajoute l'échange (message exact, réponse complète de Gemini) au journal du repas. */
+    private suspend fun saveDirectExchange(text: String, withPhoto: Boolean, answer: String, summary: DirectSummary) {
+        val now = Instant.now()
+        val previous = directLog
+        val log = GeminiMealLog(
+            id = previous?.id ?: UUID.randomUUID().toString(),
+            startedAt = previous?.startedAt ?: now,
+            updatedAt = now,
+            totalCarbs = summary.totalGrams,
+            minCarbs = summary.minGrams,
+            maxCarbs = summary.maxGrams,
+            meal = summary.meal ?: previous?.meal.orEmpty(),
+            detail = summary.detail ?: previous?.detail.orEmpty(),
+            model = AI_DIRECT_MODEL,
+            turns = previous?.turns.orEmpty() +
+                GeminiTurn(fromUser = true, text = text, withPhoto = withPhoto) +
+                GeminiTurn(fromUser = false, text = answer, totalCarbs = summary.totalGrams),
+            destinations = previous?.destinations.orEmpty(),
+        )
+        directLog = log
+        geminiLog.save(log)
+    }
+
+    /** Note dans le journal du repas Gemini ce qui est parti vers CamAPS, Glooko ou Nightscout. */
+    private suspend fun logDirectDestination(line: String) {
+        val log = directLog ?: return
+        val stamped = "${LocalTime.now().withNano(0)} — $line"
+        val updated = log.copy(updatedAt = Instant.now(), destinations = log.destinations + stamped)
+        directLog = updated
+        geminiLog.save(updated)
+    }
+
+    /**
+     * La description du repas pour le Carnet Glooko et Nightscout : en mode Gemini, le détail
+     * aliment par aliment lu dans sa réponse ; sinon, les lignes du repas.
+     */
+    private fun mealDescription(lines: List<AssistantLine>): String =
+        directLog?.detail?.takeIf { it.isNotBlank() }
+            ?: directLog?.meal?.takeIf { it.isNotBlank() }
+            ?: MealDescription.of(lines)
+
+    /** Affiche la réponse de Gemini et fait de son total l'unique ligne du repas. */
+    private fun applyDirectAnswer(
+        answer: String,
+        summary: DirectSummary,
+        exchanges: Int,
+        choices: List<DirectPortionChoice> = emptyList(),
+    ) {
+        val total = summary.totalGrams?.takeIf { it > 0.0 }
+        val low = summary.minGrams
+        val high = summary.maxGrams
+        val range = if (low != null && high != null && high > low) {
+            "${formatQuantityText(low)} à ${formatQuantityText(high)} g"
+        } else {
+            null
+        }
+        val line = total?.let {
+            AssistantLine(
+                id = 1L,
+                name = summary.meal ?: DIRECT_LINE_NAME,
+                rawText = summary.meal ?: DIRECT_LINE_NAME,
+                quantityText = "1",
+                unit = MealUnit.PORTION,
+                estimate = WebCarbEstimate(
+                    name = DIRECT_LINE_NAME,
+                    carbsPer100g = 0.0,
+                    sourceUrl = null,
+                    general = true,
+                    carbsPerUnit = it,
+                    unitDetail = range,
+                ),
+                portionNote = "Total de Gemini" + (range?.let { r -> " (fourchette $r)" } ?: ""),
+            )
+        }
+        _state.update {
+            it.copy(
+                lines = listOfNotNull(line),
+                rejected = emptyList(),
+                warnings = emptyList(),
+                photoSeen = null,
+                photo = null,
+                direct = DirectAnswerUi(
+                    answer = HttpGeminiDirectChat.plainText(answer),
+                    totalGrams = total,
+                    minGrams = summary.minGrams,
+                    maxGrams = summary.maxGrams,
+                    exchanges = exchanges,
+                    offCards = offCards(summary.chosenBarcodes),
+                    portionChoices = choices,
+                ),
+                conversation = it.conversation?.copy(thinking = false),
+            )
+        }
     }
 
     /**
@@ -1082,6 +1516,8 @@ class MealAssistantViewModel @Inject constructor(
         ) {
             return
         }
+        // En mode direct, la ligne est le total de Gemini : on le corrige en lui parlant.
+        if (directMessages != null) return
         val line = state.lines.firstOrNull { it.id == lineId } ?: return
         val session = conversationSession
         if (session != null) {
@@ -1273,7 +1709,7 @@ class MealAssistantViewModel @Inject constructor(
         // Un écart que la relecture n'a pas levé : jamais d'envoi automatique vers CamAPS. Le détail
         // est dit, et le repas attend à l'écran (`docs/DECISIONS.md` § 43).
         if (doubts.isNotEmpty()) {
-            say(CONVERSATION_DOUBT + " " + spokenDetail(state.lines) + ". Vérifie à l'écran avant d'écrire dans CamAPS.")
+            say(CONVERSATION_DOUBT + " " + spokenDetail(state.lines) + ". Vérifie à l'écran avant de valider.")
             return false
         }
         // Poids d'une pièce estimé alors que l'emballage le dit : pas d'envoi automatique, on
@@ -1283,7 +1719,7 @@ class MealAssistantViewModel @Inject constructor(
             return false
         }
         val allResolved = state.unresolvedCount == 0
-        if (allResolved && state.camapsGrams > 0 && mealRecord.config.value.camapsAutoInsert) {
+        if (allResolved && state.camapsGrams > 0 && chainsAfterTotal()) {
             return true
         }
         val names = state.lines.joinToString(", ") { it.name }
@@ -1382,8 +1818,18 @@ class MealAssistantViewModel @Inject constructor(
         return photos.newTarget()
     }
 
-    /** Photo prise à l'instant : on la lit tout de suite. */
+    /**
+     * Photo prise à l'instant. En mode Gemini, elle attend dans le lot et l'écran demande s'il faut
+     * en prendre d'autres (demande du 23/11/2026) ; sinon, on la lit tout de suite.
+     */
     fun onPhotoCaptured(uri: Uri) {
+        if (precisionLineId == null && mealRecord.config.value.geminiDirect) {
+            pendingDirectPhotos += uri
+            val count = pendingDirectPhotos.size
+            _state.update { it.copy(photoBatch = PhotoBatchUi(count), error = null) }
+            viewModelScope.launch { say(if (count == 1) MORE_PHOTOS_FIRST else MORE_PHOTOS_NEXT.format(count)) }
+            return
+        }
         routePhoto(uri)
     }
 
@@ -1392,9 +1838,89 @@ class MealAssistantViewModel @Inject constructor(
         routePhoto(uri)
     }
 
+    /**
+     * Plusieurs photos choisies d'un coup dans le téléphone. En mode Gemini, elles partent ensemble,
+     * dans un seul message ; sinon, seule la première est lue (lecture d'assiette habituelle).
+     */
+    fun onPhotosPicked(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            onPhotoCancelled(null)
+            return
+        }
+        if (precisionLineId == null && mealRecord.config.value.geminiDirect) {
+            sendDirectPhotos(uris)
+            return
+        }
+        routePhoto(uris.first())
+    }
+
+    /** « Envoyer à Gemini » : les photos du lot partent ensemble. */
+    fun sendPhotoBatch() {
+        val batch = pendingDirectPhotos.toList()
+        pendingDirectPhotos.clear()
+        _state.update { it.copy(photoBatch = null) }
+        if (batch.isNotEmpty()) sendDirectPhotos(batch)
+    }
+
+    /** « Annuler » : les photos du lot sont effacées, rien ne part. */
+    fun cancelPhotoBatch() {
+        pendingDirectPhotos.forEach(photos::forget)
+        pendingDirectPhotos.clear()
+        _state.update { it.copy(photoBatch = null) }
+    }
+
+    /**
+     * L'appareil photo va s'ouvrir : au premier cliché d'un repas Gemini, le conseil du couvert est
+     * dit (une fourchette à côté du plat sert d'échelle pour estimer les portions).
+     */
+    fun onCameraOpening() {
+        if (!mealRecord.config.value.geminiDirect || utensilHintSaid || pendingDirectPhotos.isNotEmpty()) return
+        utensilHintSaid = true
+        viewModelScope.launch { say(UTENSIL_HINT) }
+    }
+
+    private fun sendDirectPhotos(uris: List<Uri>) {
+        viewModelScope.launch {
+            val key = withContext(Dispatchers.IO) { keys.read() }
+            if (key.isNullOrBlank()) {
+                uris.forEach(photos::forget)
+                _state.update { it.copy(missingKey = true, error = PHOTO_NEEDS_KEY) }
+                return@launch
+            }
+            val typed = _state.value.transcript.trim()
+            val first = directMessages.isNullOrEmpty()
+            val text = when {
+                first && typed.isNotEmpty() -> typed
+                first -> DIRECT_FIRST_PHOTO
+                uris.size > 1 -> DIRECT_MORE_PHOTOS
+                else -> DIRECT_MORE_PHOTO
+            }
+            startDirect(key, text, uris)
+        }
+    }
+
     private fun routePhoto(uri: Uri) {
         val lineId = precisionLineId
         precisionLineId = null
+        // Mode Gemini direct : la photo part telle quelle dans la conversation, comme sur le site.
+        if (lineId == null && mealRecord.config.value.geminiDirect) {
+            viewModelScope.launch {
+                val key = withContext(Dispatchers.IO) { keys.read() }
+                if (key.isNullOrBlank()) {
+                    photos.forget(uri)
+                    _state.update { it.copy(missingKey = true, error = PHOTO_NEEDS_KEY) }
+                    return@launch
+                }
+                val typed = _state.value.transcript.trim()
+                val text = when {
+                    directMessages.isNullOrEmpty() && typed.isNotEmpty() -> typed
+                    directMessages.isNullOrEmpty() -> DIRECT_FIRST_PHOTO
+                    else -> DIRECT_MORE_PHOTO
+                }
+                startDirect(key, text, listOf(uri))
+            }
+            return
+        }
         // Pendant un repas, une photo sert à le préciser (emballage, tableau nutritionnel) ;
         // hors repas, elle propose les aliments d'une assiette.
         val mealInProgress = conversationSession != null && _state.value.lines.isNotEmpty()
@@ -1841,7 +2367,7 @@ class MealAssistantViewModel @Inject constructor(
             pendingAnswer?.complete(null)
             pendingAnswer = null
             _state.update { it.copy(camapsConfirm = null, phase = AssistantPhase.READY) }
-            if (mealRecord.config.value.camapsAutoInsert) {
+            if (chainsAfterTotal()) {
                 writeToCamaps()
             }
         }
@@ -2191,8 +2717,14 @@ class MealAssistantViewModel @Inject constructor(
         val state = _state.value
         if (!state.canWrite) return
         val carbs = state.camapsGrams
-        val description = MealDescription.of(state.lines)
-        if (!mealRecord.config.value.camapsAutoInsert) {
+        val description = mealDescription(state.lines)
+        if (mealRecord.config.value.liberty) {
+            // Liberty : rien vers « Ajouter un repas », pas même l'ouverture de CamAPS.
+            if (camapsConfirmJob?.isActive == true) return
+            camapsConfirmJob = viewModelScope.launch { recordLibertyMeal(carbs, description) }
+            return
+        }
+        if (!mealRecord.config.value.camapsAutoActive()) {
             // Le tap du bouton tient lieu de confirmation : on écrit les cibles de suivi, puis on
             // ouvre CamAPS pour la saisie manuelle.
             viewModelScope.launch {
@@ -2200,6 +2732,7 @@ class MealAssistantViewModel @Inject constructor(
                 logMeal("Envoi à CamAPS (saisie à la main) : $carbs g")
                 val result = camaps.writeCarbs(carbs)
                 _state.update { it.copy(camaps = result) }
+                logDirectDestination("CamAPS : $carbs g, saisie à la main ouverte (${result::class.simpleName})")
             }
             return
         }
@@ -2219,12 +2752,14 @@ class MealAssistantViewModel @Inject constructor(
      */
     private suspend fun writeSuiviTargets(description: String, carbs: Int, force: Boolean = false): Boolean {
         val config = mealRecord.config.value
+        var written = false
         if ((force || config.writesGlookoCarnet()) && description.isNotBlank()) {
             val moment = GlookoCarnetMoment.forHour(LocalTime.now().hour)
-            return when (val result = glookoCarnet.addEntry(description, carbs, moment)) {
+            written = when (val result = glookoCarnet.addEntry(description, carbs, moment)) {
                 is GlookoCarnetResult.Saved -> {
                     _state.update { it.copy(recordNotice = "Repas noté dans le Carnet Glooko.") }
                     say("Repas noté dans le Carnet Glooko.")
+                    logDirectDestination("Carnet Glooko : noté ($carbs g) — $description")
                     true
                 }
                 is GlookoCarnetResult.Failed -> {
@@ -2232,11 +2767,119 @@ class MealAssistantViewModel @Inject constructor(
                     // l'utilisateur croit son repas noté.
                     _state.update { it.copy(recordNotice = "Carnet Glooko : ${result.message}") }
                     say("Le repas n'a pas pu être noté dans le Carnet Glooko.")
+                    logDirectDestination("Carnet Glooko : échec — ${result.message}")
                     false
                 }
             }
         }
-        return false
+        // Niveau 3, mode Gemini : le repas dans Nightscout, glucides ET description (décision du porteur
+        // du projet du 23/11/2026). L'anti-doublon avec la synchro Glooko est dans sendMealWithCarbs
+        // (cas inverse) et dans le glooko-worker du serveur (cas courant). La note des autres repas
+        // reste gelée (`docs/CAMAPS-REPAS.md` § 6).
+        if (directLog != null && config.writesNightscoutNote() && description.isNotBlank()) {
+            // Verrou : tant que l'anti-doublon du glooko-worker n'est pas en production, les glucides
+            // ne partent pas (ils arrivent déjà par la synchro Glooko) — la note porte le total en texte.
+            val note = if (NIGHTSCOUT_MEAL_CARBS) {
+                "Miam-Miam (Gemini) : $description"
+            } else {
+                "Miam-Miam (Gemini) : $carbs g annoncés à CamAPS — $description"
+            }
+            val sent = if (NIGHTSCOUT_MEAL_CARBS) {
+                nightscout.sendMealWithCarbs(carbs, note, Instant.now())
+            } else {
+                com.najah.mealannouncer.data.nightscout.MealEntryResult(nightscout.sendNote(note, Instant.now()))
+            }
+            val label = when (val outcome = sent.outcome) {
+                NightscoutSendOutcome.Sent -> if (sent.carbsCounted) {
+                    "$carbs g envoyés avec la description"
+                } else {
+                    "description envoyée seule (glucides déjà comptés par la synchro Glooko ${sent.glookoMatchId.orEmpty()})"
+                }
+                NightscoutSendOutcome.Simulated -> "simulation, rien envoyé"
+                NightscoutSendOutcome.Disabled -> "Nightscout non réglé, rien envoyé"
+                is NightscoutSendOutcome.Failed -> "échec (${outcome.kind})"
+                else -> outcome.toString()
+            }
+            Log.i(DIRECT_TAG, "Nightscout : $label")
+            logDirectDestination("Nightscout : $label — $note")
+            if (sent.outcome == NightscoutSendOutcome.Sent) written = true
+        }
+        return written
+    }
+
+    /**
+     * Un total complet enchaîne-t-il tout seul ? Oui avec l'insertion automatique dans CamAPS, et
+     * oui sous Liberty — où l'enchaînement ne fait que **noter** le repas (journal, Carnet Glooko,
+     * Nightscout), sans jamais toucher à CamAPS.
+     */
+    private fun chainsAfterTotal(): Boolean {
+        val config = mealRecord.config.value
+        return config.liberty || config.camapsAutoActive()
+    }
+
+    /**
+     * Mode Liberty (décision de l'équipe médicale du 24/11/2026) : la première partie de la séquence
+     * — l'annonce des glucides dans « Ajouter un repas » de CamAPS FX — est supprimée. Le reste est
+     * conservé : le journal, puis les cibles de suivi (Carnet Glooko, Nightscout) selon les réglages.
+     */
+    private suspend fun recordLibertyMeal(carbs: Int, description: String, forceGlooko: Boolean = false) {
+        try {
+            logMeal("Mode Liberty : $carbs g, rien dans CamAPS")
+            logDirectDestination("CamAPS : rien envoyé (mode Liberty)")
+            _state.update {
+                it.copy(camaps = null, recordNotice = "Mode Liberty : rien n'est annoncé dans CamAPS.")
+            }
+            val wanted = suiviWanted(forceGlooko) && description.isNotBlank()
+            if (!wanted) {
+                journal.record(
+                    carbs = carbs,
+                    description = description,
+                    source = AutomationSource.ASSISTANT,
+                    outcome = AutomationOutcome.LIBERTY,
+                    detail = "Mode Liberty : rien dans CamAPS ; suivi diabétologue coupé, rien d'autre de noté.",
+                )
+                say("$carbs grammes de glucides. Mode Liberty : je n'annonce rien à CamAPS.")
+                return
+            }
+            // Le Carnet Glooko s'écrit à l'écran : il faut un téléphone déverrouillé.
+            if (home != null && phoneLock.isLocked()) {
+                say(HomeVoiceChannel.UNLOCK_PHONE)
+                if (!awaitUnlocked()) {
+                    say(HomeVoiceChannel.STILL_LOCKED)
+                    journal.record(
+                        carbs = carbs,
+                        description = description,
+                        source = AutomationSource.ASSISTANT,
+                        outcome = AutomationOutcome.FAILED,
+                        detail = "Mode Liberty : téléphone resté verrouillé, rien de noté.",
+                    )
+                    return
+                }
+            }
+            say("$carbs grammes de glucides. Mode Liberty : rien dans CamAPS, je note le repas.")
+            val tracked = writeSuiviTargets(description, carbs, force = forceGlooko)
+            journal.record(
+                carbs = carbs,
+                description = description,
+                source = AutomationSource.ASSISTANT,
+                outcome = AutomationOutcome.LIBERTY,
+                detail = if (tracked) {
+                    "Mode Liberty : rien dans CamAPS, repas noté (Carnet Glooko / Nightscout)."
+                } else {
+                    "Mode Liberty : rien dans CamAPS, et le suivi n'a pas pu être écrit."
+                },
+            )
+        } finally {
+            speech.stop()
+            home = null
+            _state.update { it.copy(camapsConfirm = null, phase = AssistantPhase.READY) }
+        }
+    }
+
+    /** Vrai quand une cible de suivi (Carnet Glooko, ou note Nightscout en mode Gemini) attend CamAPS. */
+    private fun suiviWanted(force: Boolean): Boolean {
+        val config = mealRecord.config.value
+        return force || config.writesGlookoCarnet() || (directLog != null && config.writesNightscoutNote())
     }
 
     /** Coupe le dialogue de confirmation CamAPS : plus de question, plus de micro, rien d'écrit. */
@@ -2260,6 +2903,11 @@ class MealAssistantViewModel @Inject constructor(
         presetType: CamapsMealType? = null,
         forceGlooko: Boolean = false,
     ) {
+        if (mealRecord.config.value.liberty) {
+            // Même un total dicté (« annonce 25 grammes ») n'entre plus dans CamAPS sous Liberty.
+            recordLibertyMeal(carbs, description, forceGlooko)
+            return
+        }
         var correction: String? = null
         var pendingCommand: MealCommand? = null
         var endedByCancel = false
@@ -2289,7 +2937,7 @@ class MealAssistantViewModel @Inject constructor(
                 else -> Unit
             }
             val effectiveCarbs = _state.value.camapsGrams.takeIf { it > 0 && _state.value.lines.isNotEmpty() } ?: carbs
-            val effectiveDescription = MealDescription.of(_state.value.lines).ifBlank { description }
+            val effectiveDescription = mealDescription(_state.value.lines).ifBlank { description }
             val type = (answer as? TypeAnswer.Type)?.type
             if (type == null) {
                 // Après plusieurs essais sans comprendre : on propose la photo, on ne bloque pas.
@@ -2317,6 +2965,13 @@ class MealAssistantViewModel @Inject constructor(
             logMeal("Envoi à CamAPS : $effectiveCarbs g")
             val result = camaps.announceMeal(CamapsMealRequest(carbs = effectiveCarbs, type = type, confirm = true))
             _state.update { it.copy(camaps = result) }
+            logDirectDestination(
+                if (result is CamapsWriteResult.Entered) {
+                    "CamAPS : $effectiveCarbs g saisis (${CamapsScreen.MEAL_TYPE_LABELS.getValue(type)}), en attente de Confirmer"
+                } else {
+                    "CamAPS : non atteint — ${(result as? CamapsWriteResult.Failed)?.message ?: result}"
+                },
+            )
             if (result !is CamapsWriteResult.Entered) {
                 // Un obstacle (alerte de CamAPS, écran inattendu) : rien n'est écrit. On le dit, avec
                 // la phrase qui reprend la main — le repas compris est gardé pour le Carnet.
@@ -2337,7 +2992,7 @@ class MealAssistantViewModel @Inject constructor(
             }
             unsentMeal = null
             val glooko = forceGlooko || mealRecord.config.value.writesGlookoCarnet()
-            if (!glooko || effectiveDescription.isBlank()) {
+            if (!suiviWanted(forceGlooko) || effectiveDescription.isBlank()) {
                 // Arrêt volontaire à CamAPS : le suivi est coupé, et le journal doit le montrer
                 // plutôt que de laisser croire à un repas mené jusqu'au bout.
                 journal.record(
@@ -2351,13 +3006,18 @@ class MealAssistantViewModel @Inject constructor(
                 return
             }
             say(
-                "$effectiveCarbs grammes saisis dans CamAPS. Appuie sur Confirmer, je noterai ensuite le repas dans le Carnet Glooko.",
+                if (glooko) {
+                    "$effectiveCarbs grammes saisis dans CamAPS. Appuie sur Confirmer, je noterai ensuite le repas dans le Carnet Glooko."
+                } else {
+                    "$effectiveCarbs grammes saisis dans CamAPS. Appuie sur Confirmer, j'enverrai ensuite la note à Nightscout."
+                },
             )
             _state.update {
                 it.copy(camapsConfirm = null, recordNotice = "En attente de ta confirmation dans CamAPS…")
             }
             when (camaps.awaitMealOutcome(CAMAPS_CONFIRM_WAIT_MS)) {
                 CamapsMealOutcome.CONFIRMED -> {
+                    logDirectDestination("CamAPS : confirmé")
                     val tracked = writeSuiviTargets(effectiveDescription, effectiveCarbs, force = forceGlooko)
                     journal.record(
                         carbs = effectiveCarbs,
@@ -2372,6 +3032,7 @@ class MealAssistantViewModel @Inject constructor(
                     )
                 }
                 CamapsMealOutcome.CANCELLED -> {
+                    logDirectDestination("CamAPS : annulé dans CamAPS, rien noté ailleurs")
                     journal.record(
                         carbs = effectiveCarbs,
                         description = effectiveDescription,
@@ -2383,6 +3044,7 @@ class MealAssistantViewModel @Inject constructor(
                     say("Annulé dans CamAPS. Je ne note rien dans le Carnet.")
                 }
                 CamapsMealOutcome.TIMEOUT, CamapsMealOutcome.UNKNOWN -> {
+                    logDirectDestination("CamAPS : confirmation non vue, rien noté ailleurs")
                     journal.record(
                         carbs = effectiveCarbs,
                         description = effectiveDescription,
@@ -2582,12 +3244,20 @@ class MealAssistantViewModel @Inject constructor(
         conversationJob?.cancel()
         conversationJob = null
         conversationSession = null
+        directMessages = null
+        directLog = null
+        directLookedUp.clear()
+        directOffCandidates.clear()
+        directChosenBarcodes.clear()
+        pendingDirectPhotos.forEach(photos::forget)
+        pendingDirectPhotos.clear()
+        utensilHintSaid = false
         appendNextInput = false
         home = null
         speech.stop()
         pendingAnswer?.complete(null)
         pendingAnswer = null
-        _state.value = AssistantUiState()
+        _state.value = AssistantUiState(geminiDirect = mealRecord.config.value.geminiDirect)
     }
 
     override fun onCleared() {
@@ -2609,6 +3279,36 @@ class MealAssistantViewModel @Inject constructor(
 
         /** Journal de la voix de la maison (`adb logcat -s MealAnnouncerHome`). */
         const val HOME_TAG = "MealAnnouncerHome"
+
+        /** Journal du mode Gemini direct (`adb logcat -s MealAnnouncerDirect`) : totaux et durées, jamais de clé. */
+        const val DIRECT_TAG = "MealAnnouncerDirect"
+
+        /** Ce qui accompagne une photo envoyée seule, comme on l'écrirait sur le site de Gemini. */
+        const val DIRECT_FIRST_PHOTO = "Calcule mes glucides"
+        const val DIRECT_MORE_PHOTO = "Ceci est une photo complémentaire du même repas."
+        /**
+         * Glucides des repas Gemini dans Nightscout (décision du porteur du projet du 23/11/2026). OUVERT depuis le
+         * déploiement de l'anti-doublon du glooko-worker par l'administrateur du serveur (23/11/2026 17:57 Paris, retour
+         * arrière : ns-treatments.js.bak-20261123). Fermé, seule une note (total en texte) part.
+         */
+        const val NIGHTSCOUT_MEAL_CARBS = true
+
+        /** Produits cherchés au plus dans Open Food Facts pour un même repas. */
+        const val MAX_PRODUCT_LOOKUPS = 4
+
+        const val DIRECT_MORE_PHOTOS = "Ce sont des photos complémentaires du même repas."
+
+        /** Conseil du couvert : un objet de taille connue à côté du plat sert d'échelle à Gemini. */
+        const val UTENSIL_HINT =
+            "Si tu peux, pose une fourchette ou une cuillère à côté du plat : elle sert d'échelle pour estimer les portions."
+        const val MORE_PHOTOS_FIRST = "Photo prise. Veux-tu en prendre une autre, ou l'envoyer ?"
+        const val MORE_PHOTOS_NEXT = "%d photos prises. Une autre, ou je les envoie ?"
+
+        /** Nom de la ligne quand Gemini ne résume pas le repas. */
+        const val DIRECT_LINE_NAME = "Repas estimé par Gemini"
+
+        const val DIRECT_SILENT_WITH_TOTAL =
+            "Je n'entends rien. Je garde ce total à l'écran : tu peux le valider avec le bouton ou me répondre au micro."
 
         /** Au-delà, on considère que l'utilisateur a oublié d'arrêter. */
         const val MAX_RECORDING_MS = 30_000L
@@ -2698,7 +3398,7 @@ class MealAssistantViewModel @Inject constructor(
             }
             return parts.joinToString(". ") + ". " +
                 "Pour être précis, photographie le dos de l'emballage avec le bouton photo, " +
-                "ou écris le repas dans CamAPS tel quel."
+                "ou valide le repas tel quel."
         }
 
         /**

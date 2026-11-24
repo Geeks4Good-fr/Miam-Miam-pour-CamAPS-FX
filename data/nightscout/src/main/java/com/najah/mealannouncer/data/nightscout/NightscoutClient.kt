@@ -250,6 +250,7 @@ class HttpNightscoutApi @Inject constructor(
                 enteredBy = item.optString("enteredBy").takeIf { it.isNotBlank() },
                 identifier = item.optString("identifier").takeIf { it.isNotBlank() },
                 id = item.optString("_id").takeIf { it.isNotBlank() },
+                carbs = item.optDouble("carbs").takeIf { it.isFinite() && it > 0.0 },
             )
         }
 

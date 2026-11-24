@@ -44,6 +44,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewModelScope
 import com.najah.mealannouncer.core.datastore.AiSecretStore
+import com.najah.mealannouncer.core.datastore.MealRecordConfigStore
 import com.najah.mealannouncer.core.datastore.MealRecordSettings
 import com.najah.mealannouncer.integration.glooko.GlookoPreferences
 import com.najah.mealannouncer.integration.camaps.CamapsAccessibilityService
@@ -127,6 +128,10 @@ data class SetupWizardUiState(
     val camapsWanted: Boolean = false,
     /** L'utilisateur a activé un usage de Glooko qui passe par le service d'export. */
     val glookoWanted: Boolean = false,
+    /** Réponse à « Utilisez-vous Liberty ? » (sans objet tant que [libertyAnswered] est faux). */
+    val liberty: Boolean = false,
+    /** La question Liberty a reçu une réponse. */
+    val libertyAnswered: Boolean = false,
 ) {
     /** Insertion CamAPS voulue mais impossible : le service n'est pas en marche. */
     val camapsBroken: Boolean
@@ -148,13 +153,14 @@ data class SetupWizardUiState(
 
     val essentialStepsCompletedCount: Int
         get() = listOf(
+            libertyAnswered,
             hasAiKey,
             allRequiredPacksInstalled,
             hasMicPermission && hasNotificationPermission,
         ).count { it }
 
     val isEssentialSetupComplete: Boolean
-        get() = hasAiKey && allRequiredPacksInstalled && hasMicPermission
+        get() = libertyAnswered && hasAiKey && allRequiredPacksInstalled && hasMicPermission
 }
 
 @HiltViewModel
@@ -162,6 +168,7 @@ class SetupWizardViewModel @Inject constructor(
     private val installer: OfflinePacksInstaller,
     private val aiSecrets: AiSecretStore,
     private val mealRecord: MealRecordSettings,
+    private val mealRecordStore: MealRecordConfigStore,
     private val glookoPreferences: GlookoPreferences,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -181,9 +188,19 @@ class SetupWizardViewModel @Inject constructor(
      * « Plus tard ».
      */
     fun shouldOpenAtStartup(): Boolean {
+        // La question Liberty (équipe médicale, 24/11/2026) passe avant « Plus tard » : l'assistant
+        // se rouvre à chaque lancement tant qu'elle n'a pas de réponse, mises à jour comprises.
+        if (!mealRecord.config.value.libertyAnswered) return true
         if (prefs.getBoolean(KEY_DISMISSED, false)) return false
-        val current = readState()
-        return !current.hasAiKey || !current.allRequiredPacksInstalled
+        // Depuis le 23/11/2026, les paquets hors ligne s'installent seuls sur Wi-Fi
+        // (OfflinePacksWorker) : seule la clé IA, qui demande un geste, ouvre encore l'assistant.
+        return !readState().hasAiKey
+    }
+
+    /** Réponse à « Utilisez-vous la fonction Liberty de CamAPS FX ? ». */
+    fun onLibertyAnswer(liberty: Boolean) {
+        mealRecordStore.save(mealRecordStore.config.value.copy(liberty = liberty, libertyAnswered = true))
+        refresh()
     }
 
     fun dismissStartup() {
@@ -232,9 +249,11 @@ class SetupWizardViewModel @Inject constructor(
             camapsBinding = camapsState,
             glookoBinding = glookoState,
             requiresRestrictedSettingsGuide = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
-            camapsWanted = mealRecord.config.value.camapsAutoInsert,
+            camapsWanted = mealRecord.config.value.camapsAutoActive(),
             glookoWanted = mealRecord.config.value.writesGlookoCarnet() ||
                 runCatching { glookoPreferences.enabled }.getOrDefault(false),
+            liberty = mealRecord.config.value.liberty,
+            libertyAnswered = mealRecord.config.value.libertyAnswered,
         )
     }
 
@@ -414,9 +433,9 @@ fun SetupWizardBannerCard(
                 state.hasUnboundAccessibilityTrap ->
                     "Attention : un service d'accessibilité (CamAPS ou Glooko) a été décroché par Android après une mise à jour. Ouvrez l'assistant pour le réactiver."
                 state.isEssentialSetupComplete ->
-                    "Installation prête (${state.essentialStepsCompletedCount}/3 étapes essentielles validées). Vous pouvez gérer ou mettre à jour les modèles hors ligne ici."
+                    "Installation prête (${state.essentialStepsCompletedCount}/4 étapes essentielles validées). Vous pouvez gérer ou mettre à jour les modèles hors ligne ici."
                 else ->
-                    "Configuration en cours (${state.essentialStepsCompletedCount}/3 étapes essentielles). Téléchargez les modèles hors ligne et reliez OpenRouter sans ordinateur."
+                    "Configuration en cours (${state.essentialStepsCompletedCount}/4 étapes essentielles). Téléchargez les modèles hors ligne et reliez OpenRouter sans ordinateur."
             }
             Text(
                 text = summary,
@@ -431,7 +450,7 @@ fun SetupWizardBannerCard(
                     if (state.isEssentialSetupComplete && !state.hasUnboundAccessibilityTrap) {
                         "Vérifier l'installation et les fichiers hors ligne"
                     } else {
-                        "Ouvrir l'assistant d'installation (4 étapes)"
+                        "Ouvrir l'assistant d'installation (5 étapes)"
                     },
                 )
             }
@@ -458,6 +477,7 @@ fun SetupWizardScreen(
     onRefresh: () -> Unit,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
+    onLibertyAnswer: (Boolean) -> Unit = {},
 ) {
     LifecycleResumeEffect(Unit) {
         onRefresh()
@@ -490,14 +510,70 @@ fun SetupWizardScreen(
 
         Text(
             text = "Cet assistant prépare votre téléphone sans ordinateur ni ligne de commande : " +
-                "${wizardState.essentialStepsCompletedCount} sur 3 étapes indispensables sont prêtes.",
+                "${wizardState.essentialStepsCompletedCount} sur 4 étapes indispensables sont prêtes.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // ---- ÉTAPE 1 : Clé OpenRouter ------------------------------------------------
+        // ---- ÉTAPE 1 : Liberty (équipe médicale, 24/11/2026) ----------------------------
         StepCard(
             stepNumber = 1,
+            title = "Votre traitement : fonction Liberty de CamAPS FX",
+            ready = wizardState.libertyAnswered,
+            badgeText = when {
+                !wizardState.libertyAnswered -> "À répondre"
+                wizardState.liberty -> "Liberty : oui"
+                else -> "Liberty : non"
+            },
+        ) {
+            Text(
+                text = "Utilisez-vous la fonction Liberty de CamAPS FX ? La réponse change ce que fait Miam-Miam après le calcul.",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "• Oui (Liberty) : Miam-Miam calcule et note le repas (journal, Carnet Glooko, Nightscout), mais n'annonce JAMAIS les glucides dans « Ajouter un repas » de CamAPS FX. Vous ne devez pas non plus annoncer le repas ni faire de bolus avec l'onglet couteau-fourchette.\n" +
+                    "• Non : Miam-Miam peut préparer l'annonce dans « Ajouter un repas » ; vous confirmez toujours vous-même dans CamAPS FX.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "L'utilisation de Liberty se décide avec votre diabétologue : en cas de doute, référez-vous à lui avant de répondre. Vous pourrez changer ce choix dans Réglages → Repas & CamAPS.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val yesChosen = wizardState.libertyAnswered && wizardState.liberty
+                val noChosen = wizardState.libertyAnswered && !wizardState.liberty
+                if (yesChosen) {
+                    Button(onClick = { onLibertyAnswer(true) }, modifier = Modifier.weight(1f)) {
+                        Text("Oui, Liberty")
+                    }
+                } else {
+                    OutlinedButton(onClick = { onLibertyAnswer(true) }, modifier = Modifier.weight(1f)) {
+                        Text("Oui, Liberty")
+                    }
+                }
+                if (noChosen) {
+                    Button(onClick = { onLibertyAnswer(false) }, modifier = Modifier.weight(1f)) {
+                        Text("Non")
+                    }
+                } else {
+                    OutlinedButton(onClick = { onLibertyAnswer(false) }, modifier = Modifier.weight(1f)) {
+                        Text("Non")
+                    }
+                }
+            }
+        }
+
+        // ---- ÉTAPE 2 : Clé OpenRouter ------------------------------------------------
+        StepCard(
+            stepNumber = 2,
             title = "Intelligence artificielle (OpenRouter)",
             ready = aiKeyState.stored,
             badgeText = if (aiKeyState.stored) "Prêt" else "À relier",
@@ -529,9 +605,9 @@ fun SetupWizardScreen(
             AiKeySettingsSection(state = aiKeyState, actions = aiKeyActions)
         }
 
-        // ---- ÉTAPE 2 : Fichiers hors ligne -------------------------------------------
+        // ---- ÉTAPE 3 : Fichiers hors ligne -------------------------------------------
         StepCard(
-            stepNumber = 2,
+            stepNumber = 3,
             title = "Bases et voix hors ligne (sans PC)",
             ready = wizardState.allRequiredPacksInstalled,
             badgeText = if (wizardState.allRequiredPacksInstalled) "Installés" else "À télécharger",
@@ -587,10 +663,10 @@ fun SetupWizardScreen(
             }
         }
 
-        // ---- ÉTAPE 3 : Microphone et notifications -----------------------------------
+        // ---- ÉTAPE 4 : Microphone et notifications -----------------------------------
         val permsReady = wizardState.hasMicPermission && wizardState.hasNotificationPermission
         StepCard(
-            stepNumber = 3,
+            stepNumber = 4,
             title = "Microphone et notifications",
             ready = permsReady,
             badgeText = if (permsReady) "Autorisés" else "À autoriser",
@@ -653,7 +729,7 @@ fun SetupWizardScreen(
             }
         }
 
-        // ---- ÉTAPE 4 : Services d'accessibilité CamAPS & Glooko ----------------------
+        // ---- ÉTAPE 5 : Services d'accessibilité CamAPS & Glooko ----------------------
         val bothBound = wizardState.camapsBinding == AccessibilityBindingState.BOUND_AND_RUNNING &&
             wizardState.glookoBinding == AccessibilityBindingState.BOUND_AND_RUNNING
         val step4Badge = when {
@@ -663,13 +739,17 @@ fun SetupWizardScreen(
             else -> "Optionnel"
         }
         StepCard(
-            stepNumber = 4,
+            stepNumber = 5,
             title = "Saisie automatique CamAPS FX & Glooko",
             ready = bothBound,
             badgeText = step4Badge,
         ) {
             Text(
-                text = "Pour que Miam-Miam pré-remplisse « Ajouter un repas » dans CamAPS FX (en vous laissant toujours appuyer sur Confirmer) et écrive la note dans le Carnet Glooko, activez ses deux services d'accessibilité.",
+                text = if (wizardState.liberty) {
+                    "Mode Liberty : rien n'est écrit dans CamAPS FX, le service « Insertion repas CamAPS » est inutile. Activez seulement le service Glooko si vous voulez que le repas soit noté dans le Carnet Glooko."
+                } else {
+                    "Pour que Miam-Miam pré-remplisse « Ajouter un repas » dans CamAPS FX (en vous laissant toujours appuyer sur Confirmer) et écrive la note dans le Carnet Glooko, activez ses deux services d'accessibilité."
+                },
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(Modifier.height(10.dp))

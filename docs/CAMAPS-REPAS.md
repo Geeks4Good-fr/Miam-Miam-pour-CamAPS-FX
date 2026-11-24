@@ -6,6 +6,14 @@ n'est encore implémenté** : il décrit ce qui doit l'être, et ce qui ne doit 
 
 Le relevé Glooko a son propre document : [`GLOOKO-CARNET.md`](GLOOKO-CARNET.md).
 
+> [!CAUTION]
+> **Mode Liberty (24/11/2026, équipe médicale, décision 52).** Pour un utilisateur de la fonction
+> Liberty de CamAPS FX, **tout ce contrat côté CamAPS est suspendu** : aucune annonce dans
+> « Ajouter un repas », ni automatique ni par ouverture de l'écran. Seuls le journal, le Carnet
+> Glooko et Nightscout sont écrits. L'utilisateur, lui, n'annonce pas ses repas dans « Ajouter un
+> repas » et ne fait pas de bolus avec l'onglet couteau-fourchette ; il se réfère à son
+> diabétologue pour l'utilisation de Liberty.
+
 ---
 
 ## 0. La ligne rouge (médical)
@@ -181,6 +189,8 @@ test en cours d'installation sur le PC). La note NS est donc **non implémentée
 l'interrupteur « note Nightscout » existe mais reste inerte. `writeSuiviTargets` dans le ViewModel
 porte l'emplacement exact où la brancher quand l'API NS sera figée. **Ne pas écrire l'anti-doublon
 tant que la réécriture n'est pas stabilisée** — il serait jeté.
+
+**23/11/2026 — mode Gemini direct :** une **note** Nightscout (`eventType: Note`, **sans** `carbs`) est écrite pour les repas menés avec Gemini : la description sans risque de doublon (`DECISIONS.md` § 50). L'option 2 (« Carbs » direct + anti-doublon dans l'import) reste à faire quand le fork sera stabilisé.
 
 ---
 

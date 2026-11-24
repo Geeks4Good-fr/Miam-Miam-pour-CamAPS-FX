@@ -1,6 +1,8 @@
 package com.najah.mealannouncer.core.database.di
 
 import com.najah.mealannouncer.core.database.repository.DefaultFavoriteMealRepository
+import com.najah.mealannouncer.core.database.repository.DefaultGeminiMealLogRepository
+import com.najah.mealannouncer.core.database.repository.GeminiMealLogRepository
 import com.najah.mealannouncer.core.database.repository.DefaultJournalRepository
 import com.najah.mealannouncer.core.database.repository.DefaultMealRepository
 import com.najah.mealannouncer.core.database.repository.FavoriteMealRepository
@@ -35,4 +37,10 @@ abstract class MealDataModule {
     abstract fun bindFavoriteMealRepository(
         impl: DefaultFavoriteMealRepository,
     ): FavoriteMealRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGeminiMealLogRepository(
+        impl: DefaultGeminiMealLogRepository,
+    ): GeminiMealLogRepository
 }

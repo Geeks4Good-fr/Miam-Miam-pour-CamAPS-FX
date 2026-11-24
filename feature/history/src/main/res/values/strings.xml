@@ -26,6 +26,18 @@
     <string name="journal_back">Retour</string>
     <string name="journal_tab_automations">Automatisations</string>
     <string name="journal_tab_meals">Repas</string>
+    <string name="journal_tab_gemini">Gemini</string>
+    <string name="journal_gemini_empty">Aucun repas mené avec Gemini pour l\'instant. Chaque repas du mode Gemini direct apparaîtra ici avec toute sa conversation.</string>
+    <string name="journal_gemini_counts">%1$d échange(s), %2$d photo(s) · %3$s</string>
+    <string name="journal_gemini_destinations">Envois</string>
+    <string name="journal_gemini_you">Vous</string>
+    <string name="journal_gemini_you_photo">Vous (avec une photo)</string>
+    <string name="journal_gemini_answer">Gemini</string>
+    <string name="journal_gemini_show">Voir la conversation</string>
+    <string name="journal_gemini_hide">Masquer</string>
+    <string name="journal_gemini_share">Partager</string>
+    <string name="journal_gemini_note_glooko">Noter dans le Carnet Glooko</string>
+    <string name="journal_gemini_send_nightscout">Envoyer à Nightscout</string>
     <string name="journal_empty">Aucune automatisation pour l\'instant.</string>
     <string name="journal_empty_hint">Chaque annonce envoyée à CamAPS FX est notée ici, avec ce qu\'elle est devenue : menée jusqu\'au bout, arrêtée à CamAPS, annulée ou en échec.</string>
     <string name="journal_summary_title">Résumé</string>
@@ -43,4 +55,9 @@
     <string name="journal_outcome_camaps_only">CamAPS seulement</string>
     <string name="journal_outcome_cancelled">Annulé</string>
     <string name="journal_outcome_failed">Échec</string>
+    <string name="journal_outcome_liberty">Liberty (noté, rien dans CamAPS)</string>
+    <string name="journal_gemini_delete_title">Supprimer ce repas Gemini ?</string>
+    <string name="journal_gemini_delete_message">Toute la conversation de ce repas sera effacée du journal. Ce qui a déjà été envoyé au Carnet Glooko ou à Nightscout n\'est pas touché.</string>
+    <string name="journal_entry_delete_title">Supprimer cette ligne ?</string>
+    <string name="journal_entry_delete_message">La ligne sera effacée du journal des automatisations. Rien n\'est changé dans CamAPS, Glooko ou Nightscout.</string>
 </resources>

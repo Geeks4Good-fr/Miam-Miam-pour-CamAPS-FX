@@ -1,5 +1,52 @@
 # Journal des modifications
 
+## 0.16.0 — 2026-11-24 — Mode Gemini direct, mode Liberty, nouveau logo
+
+### Ajouté
+
+- **Mode Gemini direct** (décision 50, activé par défaut) : les photos et les phrases partent
+  telles quelles à `google/gemini-4-hydrogen`, comme sur gemini.google.com ; un lecteur
+  (`gemini-3.1-flash-lite`) reprend le total, la fourchette, la question et les produits, sans
+  rien recalculer. Jusqu'à 6 photos par message (« Autre photo ? »), conseil du couvert posé à
+  côté du plat, questions de Gemini posées à voix haute.
+  - **Fiches Open Food Facts comparées par Gemini** : pour chaque produit du commerce, jusqu'à 3
+    fiches avec leur photo ; Gemini retient la bonne et recalcule avec l'étiquette.
+  - **Portions en photos** pour les aliments sans marque (862 aliments, 2 195 photos pesées).
+  - **Journal → onglet Gemini** : toute la conversation, le total, la fourchette et les envois
+    horodatés ; boutons **Noter dans le Carnet Glooko** et **Envoyer à Nightscout** après coup.
+  - **Nightscout** : glucides et détail du repas, avec anti-doublon face à la synchronisation
+    Glooko (± 30 min, ± 1 g).
+- **Données hors ligne installées toutes seules** en Wi-Fi (décision 51) : base Open Food Facts,
+  banque de portions, dictée, mot-clé, voix ; l'assistant d'installation garde ses boutons.
+- **Mode Liberty** (décision de l'équipe médicale du 24/11/2026). Pour les utilisateurs de la
+  fonction Liberty de CamAPS FX, Miam-Miam **n'annonce plus aucun repas dans « Ajouter un
+  repas »** : ni saisie automatique, ni ouverture de l'écran pour une saisie à la main. Le reste
+  de la séquence est conservé (calcul, journal, Carnet Glooko, Nightscout, glycémies).
+  - Question posée à l'installation (étape 1 de l'assistant, qui se rouvre à chaque lancement
+    tant qu'elle n'a pas de réponse, mises à jour comprises).
+  - Interrupteur **« J'utilise la fonction Liberty de CamAPS FX »** en tête de Réglages → Repas &
+    CamAPS, avec le rappel : pas d'annonce dans « Ajouter un repas », pas de bolus avec l'onglet
+    couteau-fourchette, se référer à son diabétologue.
+  - Boutons « Noter le repas (Liberty : rien dans CamAPS) » dans l'assistant et la recherche
+    manuelle ; nouvelle issue **« Liberty (noté, rien dans CamAPS) »** dans le Journal.
+  - Verrou dans la porte vers CamAPS : sous Liberty, aucun chemin ne peut écrire dans CamAPS.
+  - Le choix est gardé dans la sauvegarde des réglages.
+- **Photos des produits** dans la recherche manuelle (photo de face de la fiche Open Food Facts,
+  chargée en ligne ; rien sans Internet).
+- **Nouveau logo** et nouvelle icône de lancement (fraise dans l'assiette, anneau vert).
+
+### Corrigé
+
+- L'heure envoyée à Nightscout depuis le Journal est celle de CamAPS, pas celle de l'envoi
+  (doublon avec la synchronisation Glooko).
+- **Fiches Open Food Facts envoyées à Gemini** : une fiche doit partager au moins deux mots
+  parlants avec le produit nommé (la marque dite passe devant). Avant, « biscuits Prince
+  classiques » ramenait des frites, des carottes râpées et un taboulé, rapprochés par le seul mot
+  « classiques ». Sans fiche convenable, Gemini garde son estimation.
+- **Journal** : supprimer un repas Gemini ou une ligne d'automatisation demande confirmation ;
+  les boutons des cartes Gemini passent à la ligne au lieu d'être coupés (« Sup / pri / mer »).
+- **Accueil** : le texte ne promet plus l'écriture dans CamAPS FX aux utilisateurs de Liberty.
+
 ## 0.15.4 — 2026-11-16 — Alerte quand l'insertion CamAPS est coupée
 
 ### Ajouté

@@ -33,6 +33,9 @@ class MealRecordConfigStore @Inject constructor(
             .putBoolean(KEY_GLOOKO, config.glookoCarnet)
             .putBoolean(KEY_NIGHTSCOUT, config.nightscoutNote)
             .putBoolean(KEY_PHOTO, config.attachPhoto)
+            .putBoolean(KEY_GEMINI_DIRECT, config.geminiDirect)
+            .putBoolean(KEY_LIBERTY, config.liberty)
+            .putBoolean(KEY_LIBERTY_ANSWERED, config.libertyAnswered)
             .apply()
         _config.value = config
     }
@@ -45,6 +48,9 @@ class MealRecordConfigStore @Inject constructor(
             glookoCarnet = prefs.getBoolean(KEY_GLOOKO, defaults.glookoCarnet),
             nightscoutNote = prefs.getBoolean(KEY_NIGHTSCOUT, defaults.nightscoutNote),
             attachPhoto = prefs.getBoolean(KEY_PHOTO, defaults.attachPhoto),
+            geminiDirect = prefs.getBoolean(KEY_GEMINI_DIRECT, defaults.geminiDirect),
+            liberty = prefs.getBoolean(KEY_LIBERTY, defaults.liberty),
+            libertyAnswered = prefs.getBoolean(KEY_LIBERTY_ANSWERED, defaults.libertyAnswered),
         )
     }
 
@@ -55,5 +61,8 @@ class MealRecordConfigStore @Inject constructor(
         const val KEY_GLOOKO = "glookoCarnet"
         const val KEY_NIGHTSCOUT = "nightscoutNote"
         const val KEY_PHOTO = "attachPhoto"
+        const val KEY_GEMINI_DIRECT = "geminiDirect"
+        const val KEY_LIBERTY = "liberty"
+        const val KEY_LIBERTY_ANSWERED = "libertyAnswered"
     }
 }

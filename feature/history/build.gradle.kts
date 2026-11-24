@@ -31,6 +31,9 @@ dependencies {
     api(project(":core:model"))
     implementation(project(":core:common"))
     implementation(project(":core:database"))
+    // Journal Gemini : noter un repas après coup dans le Carnet Glooko et Nightscout (23/11/2026).
+    implementation(project(":integration:glookoexport"))
+    implementation(project(":data:nightscout"))
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

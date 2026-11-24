@@ -25,6 +25,12 @@ enum class AutomationOutcome {
 
     /** CamAPS n'a pas pu être atteint (alerte, écran inattendu, service d'accessibilité coupé). */
     FAILED,
+
+    /**
+     * Mode Liberty (24/11/2026) : volontairement **rien** dans CamAPS ; le repas est seulement
+     * noté (journal, Carnet Glooko et Nightscout selon les réglages).
+     */
+    LIBERTY,
 }
 
 /** D'où part l'annonce : ce qui a déclenché l'automatisation. */

@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.najah.mealannouncer.feature.assistant.portions.PortionOption
 import com.najah.mealannouncer.feature.assistant.portions.PortionPicker
 import com.najah.mealannouncer.core.model.CarbResult
 import com.najah.mealannouncer.core.model.FoodSource
@@ -83,6 +84,11 @@ fun MealAssistantScreen(
     onLoadFavourite: (String) -> Unit = {},
     /** Le repas affiché enregistré comme favori, sous le nom donné. */
     onSaveFavourite: (String) -> Unit = {},
+    /** Mode Gemini : envoyer ou abandonner les photos prises en attente. */
+    onSendPhotoBatch: () -> Unit = {},
+    onCancelPhotoBatch: () -> Unit = {},
+    /** Mode Gemini : une portion en images touchée pour un aliment sans marque. */
+    onDirectPortionPick: (String, PortionOption) -> Unit = { _, _ -> },
 ) {
     var favouriteName by rememberSaveable { mutableStateOf("") }
     Column(
@@ -193,6 +199,34 @@ fun MealAssistantScreen(
                 )
             }
         }
+        // Mode Gemini : un couvert à côté du plat sert d'échelle pour estimer les portions.
+        if (state.geminiDirect) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.assistant_utensil_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        state.photoBatch?.let { batch ->
+            Spacer(Modifier.height(10.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = stringResource(R.string.assistant_photo_batch, batch.count),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onTakePhoto) { Text(stringResource(R.string.assistant_photo_batch_more)) }
+                        Button(onClick = onSendPhotoBatch) { Text(stringResource(R.string.assistant_photo_batch_send)) }
+                        TextButton(onClick = onCancelPhotoBatch) { Text(stringResource(R.string.assistant_photo_batch_cancel)) }
+                    }
+                }
+            }
+        }
 
         if (state.busy) {
             Spacer(Modifier.height(16.dp))
@@ -259,6 +293,8 @@ fun MealAssistantScreen(
         }
 
         state.photoSeen?.let { seen -> SeenCard(seen) }
+
+        state.direct?.let { direct -> GeminiDirectCard(direct, onDirectPortionPick, enabled = !state.busy) }
 
         state.conversation?.let { talk ->
             Spacer(Modifier.height(16.dp))
@@ -351,7 +387,11 @@ fun MealAssistantScreen(
                     .fillMaxWidth()
                     .height(56.dp),
             ) {
-                Text(stringResource(R.string.assistant_write_camaps))
+                Text(
+                    stringResource(
+                        if (state.liberty) R.string.assistant_write_liberty else R.string.assistant_write_camaps,
+                    ),
+                )
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
@@ -439,6 +479,114 @@ private fun SeenCard(seen: String) {
             )
             Spacer(Modifier.height(4.dp))
             Text(text = seen, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/**
+ * La réponse de Gemini en mode direct, telle qu'il l'a écrite (sans la mise en forme Markdown) :
+ * le détail se lit ici, comme sur le site de Gemini ; le total retenu est rappelé en tête.
+ */
+@Composable
+private fun GeminiDirectCard(
+    direct: DirectAnswerUi,
+    onPortionPick: (String, PortionOption) -> Unit,
+    enabled: Boolean,
+) {
+    Spacer(Modifier.height(16.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = stringResource(R.string.assistant_gemini_title, direct.exchanges),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            direct.totalLabel?.let { total ->
+                Spacer(Modifier.height(4.dp))
+                Text(text = total, style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(text = direct.answer, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+    // Les fiches Open Food Facts que Gemini a comparées à la photo : l'utilisateur voit ce qui a servi.
+    if (direct.offCards.isNotEmpty()) {
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = stringResource(R.string.assistant_gemini_off_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        direct.offCards.forEach { card -> OffCard(card) }
+    }
+    // Les portions en images des aliments sans marque : toucher une photo précise la portion à Gemini.
+    direct.portionChoices.forEach { choice ->
+        Spacer(Modifier.height(10.dp))
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = stringResource(R.string.assistant_gemini_portion_title, choice.said),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(Modifier.height(6.dp))
+                PortionPicker(
+                    options = choice.options,
+                    currentGrams = null,
+                    onPick = if (enabled) {
+                        { grams: Double -> choice.options.firstOrNull { it.grams == grams }?.let { onPortionPick(choice.said, it) } }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** Une fiche Open Food Facts : photo, nom, marque, et les valeurs de l'étiquette qui servent au calcul. */
+@Composable
+private fun OffCard(card: OffCardUi) {
+    val p = card.product
+    Spacer(Modifier.height(6.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (card.chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
+            p.imageUrl?.let { url ->
+                ProductThumbnail(image = ProductImage(url, "Open Food Facts"), modifier = Modifier.width(72.dp))
+                Spacer(Modifier.width(10.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = (if (card.chosen) "✓ " else "") + p.name + (p.brand?.let { " — $it" } ?: ""),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                val values = buildList {
+                    p.carbsPer100g?.let { add("${formatQuantityText(it)} g de glucides / 100 g") }
+                    p.carbsPer100ml?.let { add("${formatQuantityText(it)} g de glucides / 100 ml") }
+                    p.carbsPerUnit?.let { add("${formatQuantityText(it)} g par portion") }
+                    p.servingLabel?.let { add("portion : $it") }
+                    p.packageGrams?.let { add("paquet : ${formatQuantityText(it)} g") }
+                    p.barcode?.let { add("code-barres $it") }
+                }
+                Text(
+                    text = values.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(
+                        if (card.chosen) R.string.assistant_gemini_off_chosen else R.string.assistant_gemini_off_candidate,
+                        card.askedName,
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
     }
 }
@@ -939,7 +1087,10 @@ private fun TotalCard(state: AssistantUiState) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(R.string.assistant_camaps_value, state.camapsGrams),
+                text = stringResource(
+                    if (state.liberty) R.string.assistant_liberty_value else R.string.assistant_camaps_value,
+                    state.camapsGrams,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
